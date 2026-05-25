@@ -1,9 +1,8 @@
 // 兜底数据源 1：腾讯财经 qt.gtimg.cn
-// A 股 / 港股 字段最全，海外 IP 可达（不在东方财富 push2 黑名单上）
-// 美股 ticker 不稳定，留给 Twelve Data 处理
+// A 股 / 港股 / 美股 字段最全，海外 IP 可达（不在东方财富 push2 黑名单上）
 //
 // 数据格式：v_sh600519="1~名称~600519~1285.88~...";
-// 字段按 ~ 分隔，按市场（A 股 vs 港股）位置不同
+// 字段按 ~ 分隔，PB 位置在 A 股 / 美股 / 港股 间不同
 //
 // A 股位置参考（sh600519 / sz000001 / sh688xxx 都适用）：
 //   [3] 现价 [4] 昨收 [5] 开盘 [6] 成交量(手) [31] 涨跌额 [32] 涨跌幅%
@@ -14,6 +13,10 @@
 //   [33] 最高 [34] 最低 [37] 成交额(港币元) [39] PE
 //   [44] 流通市值(亿港币) [45] 总市值(亿港币)
 //   港股不提供 PB / 换手率
+// 美股位置参考（usAAPL，无后缀）：
+//   [3] 现价 [4] 昨收 [5] 开盘 [6] 成交量(股) [31] 涨跌额 [32] 涨跌幅%
+//   [33] 最高 [34] 最低 [37] 成交额(美元) [38] 换手率% [39] PE
+//   [44] 流通市值(亿美元) [45] 总市值(亿美元) [51] PB（注意位置和 A 股不同）
 
 import type { Quote } from "./eastmoney";
 
@@ -28,7 +31,8 @@ function toTencentSymbol(
     if (/^[03]/.test(s)) return { ticker: `sz${s}`, market: "SZ" };
     if (/^[48]/.test(s)) return { ticker: `bj${s}`, market: "BJ" };
   }
-  // 美股代码：腾讯财经格式不稳，不接管，让上层降到 Twelve Data
+  // 美股：腾讯财经格式为 us + 代码（无 .OQ/.N 后缀，系统会自动补全）
+  if (/^[A-Z]{1,5}$/.test(s)) return { ticker: `us${s}`, market: "US" };
   return null;
 }
 
@@ -76,11 +80,17 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
   const high = n(fields[33]) || price;
   const low = n(fields[34]) || price;
 
-  // A 股成交额是万元、市值是亿元；港股成交额是元、市值是亿港币
+  // 成交额单位：A 股是万元（×10000）；港股/美股已经是本币元
   const isHK = r.market === "HK";
-  const turnover = isHK ? n(fields[37]) : n(fields[37]) * 10000;
+  const isUS = r.market === "US";
+  const turnover = isHK || isUS ? n(fields[37]) : n(fields[37]) * 10000;
+  // 市值单位：三种市场都是"亿"（亿元/亿港币/亿美元），统一 ×1e8
   const marketCap = n(fields[45]) * 1e8;
   const floatCap = n(fields[44]) * 1e8;
+  // PB 位置：A 股在 [46]，美股在 [51]（[46] 是英文公司名），港股无
+  let pb = 0;
+  if (isUS) pb = n(fields[51]);
+  else if (!isHK) pb = n(fields[46]);
 
   return {
     symbol: rawSymbol.trim().toUpperCase(),
@@ -101,7 +111,7 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
     turnover,
     turnoverRate: isHK ? 0 : n(fields[38]),
     pe: n(fields[39]),
-    pb: isHK ? 0 : n(fields[46]),
+    pb,
     marketCap,
     floatCap,
     market: r.market,

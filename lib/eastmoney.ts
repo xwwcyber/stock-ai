@@ -30,8 +30,8 @@ export interface Quote {
 // ============================================================
 // 主入口：东方财富 → 腾讯财经 → Twelve Data → Yahoo 四级降级
 // 国内 IP 命中东方财富 push2；海外 IP 时：
-//   A股/港股 → 腾讯财经 qt.gtimg.cn（字段最全）
-//   美股 → Twelve Data（要 API key，A股/港股免费版不支持）
+//   A股/港股/美股 → 腾讯财经 qt.gtimg.cn（字段最全，全市场覆盖）
+//   Twelve Data 作为美股冗余（要 API key，A股/港股免费版不支持）
 //   全部失败 → Yahoo chart 兜底（价格类够看）
 // ============================================================
 import { fetchFromTencent } from "./tencent";
