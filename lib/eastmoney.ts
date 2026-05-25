@@ -28,29 +28,41 @@ export interface Quote {
 }
 
 // ============================================================
-// 主入口：东方财富（限时 2 秒）→ 失败兜底 Yahoo
+// 主入口：东方财富 → Twelve Data → Yahoo 三级降级
+// 国内 IP 命中东方财富；海外 IP 走 Twelve Data（要 API key）；
+// 都失败再用 Yahoo（公开 endpoint，但字段不全/限流）
 // ============================================================
+import { fetchFromTwelveData } from "./twelvedata";
+
 export async function fetchQuote(rawSymbol: string): Promise<Quote> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 2000);
+  const errors: string[] = [];
+
   try {
     return await fetchFromEastmoney(rawSymbol, ac.signal);
-  } catch (primaryErr) {
-    // 东方财富任何形式失败（502/超时/字段缺）→ 走 Yahoo
-    try {
-      return await fetchFromYahoo(rawSymbol);
-    } catch (fallbackErr) {
-      const a =
-        primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-      const b =
-        fallbackErr instanceof Error
-          ? fallbackErr.message
-          : String(fallbackErr);
-      throw new Error(`行情数据获取失败（东方财富: ${a}; Yahoo: ${b}）`);
-    }
+  } catch (e) {
+    errors.push(`东方财富: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     clearTimeout(timer);
   }
+
+  // 配了 TWELVE_DATA_API_KEY 才走这一层，没配则跳过
+  if (process.env.TWELVE_DATA_API_KEY) {
+    try {
+      return await fetchFromTwelveData(rawSymbol);
+    } catch (e) {
+      errors.push(`Twelve Data: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  try {
+    return await fetchFromYahoo(rawSymbol);
+  } catch (e) {
+    errors.push(`Yahoo: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  throw new Error(`行情数据获取失败（${errors.join("; ")}）`);
 }
 
 // ============================================================
