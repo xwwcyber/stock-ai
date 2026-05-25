@@ -199,7 +199,12 @@ function toYahooSymbol(
     if (/^[03]/.test(s)) return { symbol: `${s}.SZ`, market: "SZ" };
     if (/^[48]/.test(s)) return { symbol: `${s}.BJ`, market: "BJ" };
   }
-  if (/^\d{5}$/.test(s)) return { symbol: `${s}.HK`, market: "HK" };
+  if (/^\d{5}$/.test(s)) {
+    // Yahoo 港股 ticker 去前导 0、补到 4 位（00700 → 0700）
+    const stripped = s.replace(/^0+/, "") || "0";
+    const padded = stripped.padStart(4, "0");
+    return { symbol: `${padded}.HK`, market: "HK" };
+  }
   if (/^[A-Z]{1,5}$/.test(s)) return { symbol: s, market: "US" };
   return null;
 }
