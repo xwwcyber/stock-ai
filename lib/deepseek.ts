@@ -1,18 +1,18 @@
-import OpenAI from 'openai';
-import type { Quote } from './eastmoney';
+import OpenAI from "openai";
+import type { Quote } from "./eastmoney";
 
 // DeepSeek 兼容 OpenAI SDK，只需替换 baseURL
 function getClient() {
   const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error('缺少环境变量 DEEPSEEK_API_KEY');
+  if (!apiKey) throw new Error("缺少环境变量 DEEPSEEK_API_KEY");
   return new OpenAI({
     apiKey,
-    baseURL: 'https://api.deepseek.com/v1',
+    baseURL: "https://api.deepseek.com/v1",
   });
 }
 
-export type Sentiment = 'Bullish' | 'Neutral' | 'Bearish';
-export type RiskLevel = 'Low' | 'Medium' | 'High';
+export type Sentiment = "Bullish" | "Neutral" | "Bearish";
+export type RiskLevel = "Low" | "Medium" | "High";
 
 export interface Analysis {
   summary: string;
@@ -32,34 +32,37 @@ const SYSTEM_PROMPT = `你是一名资深股票分析师。基于用户给出的
 只返回 JSON，不要任何解释性前后缀，不要使用 markdown 代码块包裹。`;
 
 function buildUserPrompt(q: Quote): string {
-  return `股票: ${q.name} (${q.symbol}) [${q.market}]
+  const na = (v: number, suffix = "") => (v ? `${v}${suffix}` : "数据缺失");
+  const naPct = (v: number) => (v ? `${v.toFixed(2)}%` : "数据缺失");
+  return `股票: ${q.name || q.symbol} (${q.symbol}) [${q.market}]
 现价: ${q.price}
 今日: 开 ${q.open} / 高 ${q.high} / 低 ${q.low} / 昨收 ${q.prevClose}
-涨跌: ${q.change >= 0 ? '+' : ''}${q.change} (${q.changePct.toFixed(2)}%)
-成交量: ${q.volume} 手, 成交额: ${q.turnover}
-换手率: ${q.turnoverRate.toFixed(2)}%
-估值: PE ${q.pe || 'N/A'} / PB ${q.pb || 'N/A'}
-市值: 总 ${q.marketCap} / 流通 ${q.floatCap}
+涨跌: ${q.change >= 0 ? "+" : ""}${q.change} (${q.changePct.toFixed(2)}%)
+成交量: ${na(q.volume, " 手")}, 成交额: ${na(q.turnover)}
+换手率: ${naPct(q.turnoverRate)}
+估值: PE ${na(q.pe)} / PB ${na(q.pb)}
+市值: 总 ${na(q.marketCap)} / 流通 ${na(q.floatCap)}
 
-请基于以上数据输出分析。`;
+注意：标注"数据缺失"的字段说明当前数据源不提供，请勿据此判断或在分析中编造数值。
+请基于以上可用数据输出分析。`;
 }
 
 export async function analyzeQuote(quote: Quote): Promise<Analysis> {
   const client = getClient();
 
   const completion = await client.chat.completions.create({
-    model: 'deepseek-chat',
+    model: "deepseek-chat",
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: buildUserPrompt(quote) },
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: buildUserPrompt(quote) },
     ],
-    response_format: { type: 'json_object' },
+    response_format: { type: "json_object" },
     temperature: 0.4,
     max_tokens: 800,
   });
 
-  const raw = completion.choices[0]?.message?.content ?? '';
-  if (!raw) throw new Error('LLM 返回为空');
+  const raw = completion.choices[0]?.message?.content ?? "";
+  if (!raw) throw new Error("LLM 返回为空");
 
   let parsed: unknown;
   try {
@@ -72,10 +75,10 @@ export async function analyzeQuote(quote: Quote): Promise<Analysis> {
 }
 
 function validate(data: unknown): Analysis {
-  if (!data || typeof data !== 'object') throw new Error('LLM 输出格式错误');
+  if (!data || typeof data !== "object") throw new Error("LLM 输出格式错误");
   const obj = data as Record<string, unknown>;
 
-  const summary = typeof obj.summary === 'string' ? obj.summary : '';
+  const summary = typeof obj.summary === "string" ? obj.summary : "";
   const sentiment = obj.sentiment;
   const risk_level = obj.risk_level ?? obj.riskLevel;
   const key_factors = Array.isArray(obj.key_factors)
@@ -84,11 +87,19 @@ function validate(data: unknown): Analysis {
       ? (obj.keyFactors as unknown[]).map(String).slice(0, 6)
       : [];
 
-  if (!summary) throw new Error('summary 字段缺失');
-  if (sentiment !== 'Bullish' && sentiment !== 'Neutral' && sentiment !== 'Bearish') {
+  if (!summary) throw new Error("summary 字段缺失");
+  if (
+    sentiment !== "Bullish" &&
+    sentiment !== "Neutral" &&
+    sentiment !== "Bearish"
+  ) {
     throw new Error(`sentiment 取值非法: ${String(sentiment)}`);
   }
-  if (risk_level !== 'Low' && risk_level !== 'Medium' && risk_level !== 'High') {
+  if (
+    risk_level !== "Low" &&
+    risk_level !== "Medium" &&
+    risk_level !== "High"
+  ) {
     throw new Error(`risk_level 取值非法: ${String(risk_level)}`);
   }
 

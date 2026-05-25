@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface Quote {
   symbol: string;
@@ -24,8 +24,8 @@ interface Quote {
 
 interface Analysis {
   summary: string;
-  sentiment: 'Bullish' | 'Neutral' | 'Bearish';
-  risk_level: 'Low' | 'Medium' | 'High';
+  sentiment: "Bullish" | "Neutral" | "Bearish";
+  risk_level: "Low" | "Medium" | "High";
   key_factors: string[];
 }
 
@@ -36,38 +36,40 @@ interface HistoryRecord {
   price: number | null;
   change_pct: number | null;
   summary: string;
-  sentiment: 'Bullish' | 'Neutral' | 'Bearish';
-  risk_level: 'Low' | 'Medium' | 'High';
+  sentiment: "Bullish" | "Neutral" | "Bearish";
+  risk_level: "Low" | "Medium" | "High";
   created_at: string;
 }
 
 const SENTIMENT_STYLE: Record<string, string> = {
-  Bullish: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-  Neutral: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200',
-  Bearish: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+  Bullish:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  Neutral: "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200",
+  Bearish: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
 };
 
 const RISK_STYLE: Record<string, string> = {
-  Low: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-  Medium: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-  High: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+  Low: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  Medium:
+    "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  High: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
 };
 
 function fmtNumber(n: number, digits = 2): string {
-  if (!Number.isFinite(n)) return '-';
-  return n.toLocaleString('zh-CN', { maximumFractionDigits: digits });
+  if (!Number.isFinite(n)) return "-";
+  return n.toLocaleString("zh-CN", { maximumFractionDigits: digits });
 }
 
 function fmtBig(n: number): string {
-  if (!Number.isFinite(n) || n === 0) return '-';
-  if (n >= 1e12) return (n / 1e12).toFixed(2) + ' 万亿';
-  if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 亿';
-  if (n >= 1e4) return (n / 1e4).toFixed(2) + ' 万';
+  if (!Number.isFinite(n) || n === 0) return "-";
+  if (n >= 1e12) return (n / 1e12).toFixed(2) + " 万亿";
+  if (n >= 1e8) return (n / 1e8).toFixed(2) + " 亿";
+  if (n >= 1e4) return (n / 1e4).toFixed(2) + " 万";
   return n.toFixed(0);
 }
 
 export default function Home() {
-  const [symbol, setSymbol] = useState('600519');
+  const [symbol, setSymbol] = useState("600519");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -78,17 +80,17 @@ export default function Home() {
 
   async function loadHistory() {
     try {
-      const res = await fetch('/api/history');
+      const res = await fetch("/api/history");
       const data = await res.json();
       if (!res.ok) {
-        setHistoryError(data.error ?? '读取历史失败');
+        setHistoryError(data.error ?? "读取历史失败");
         setHistory([]);
         return;
       }
       setHistoryError(null);
       setHistory(data.records ?? []);
     } catch (e) {
-      setHistoryError(e instanceof Error ? e.message : '网络错误');
+      setHistoryError(e instanceof Error ? e.message : "网络错误");
     }
   }
 
@@ -99,7 +101,7 @@ export default function Home() {
   async function onAnalyze() {
     const s = symbol.trim();
     if (!s) {
-      setError('请输入股票代码');
+      setError("请输入股票代码");
       return;
     }
     setLoading(true);
@@ -109,14 +111,14 @@ export default function Home() {
     setSaved(false);
 
     try {
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol: s }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? '分析失败');
+        setError(data.error ?? "分析失败");
         return;
       }
       setQuote(data.quote);
@@ -124,14 +126,14 @@ export default function Home() {
       setSaved(Boolean(data.saved));
       if (data.saved) loadHistory();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '网络错误');
+      setError(e instanceof Error ? e.message : "网络错误");
     } finally {
       setLoading(false);
     }
   }
 
   function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') onAnalyze();
+    if (e.key === "Enter") onAnalyze();
   }
 
   return (
@@ -163,7 +165,7 @@ export default function Home() {
             disabled={loading}
             className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-400 dark:disabled:bg-slate-600 text-white font-medium shadow transition"
           >
-            {loading ? '分析中…' : '开始分析'}
+            {loading ? "分析中…" : "开始分析"}
           </button>
         </div>
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
@@ -194,12 +196,12 @@ export default function Home() {
               <div
                 className={`text-sm font-medium ${
                   quote.changePct >= 0
-                    ? 'text-rose-600 dark:text-rose-400'
-                    : 'text-emerald-600 dark:text-emerald-400'
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-emerald-600 dark:text-emerald-400"
                 }`}
               >
-                {quote.change >= 0 ? '+' : ''}
-                {fmtNumber(quote.change)} ({quote.changePct >= 0 ? '+' : ''}
+                {quote.change >= 0 ? "+" : ""}
+                {fmtNumber(quote.change)} ({quote.changePct >= 0 ? "+" : ""}
                 {fmtNumber(quote.changePct)}%)
               </div>
             </div>
@@ -211,8 +213,13 @@ export default function Home() {
             <Stat label="最高" value={fmtNumber(quote.high)} />
             <Stat label="最低" value={fmtNumber(quote.low)} />
             <Stat label="成交额" value={fmtBig(quote.turnover)} />
-            <Stat label="换手率" value={fmtNumber(quote.turnoverRate) + '%'} />
-            <Stat label="市盈率" value={quote.pe ? fmtNumber(quote.pe) : '-'} />
+            <Stat
+              label="换手率"
+              value={
+                quote.turnoverRate ? fmtNumber(quote.turnoverRate) + "%" : "-"
+              }
+            />
+            <Stat label="市盈率" value={quote.pe ? fmtNumber(quote.pe) : "-"} />
             <Stat label="总市值" value={fmtBig(quote.marketCap)} />
           </div>
         </section>
@@ -224,10 +231,14 @@ export default function Home() {
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mr-2">
               AI 分析
             </h3>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${SENTIMENT_STYLE[analysis.sentiment]}`}>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${SENTIMENT_STYLE[analysis.sentiment]}`}
+            >
               情绪 · {analysis.sentiment}
             </span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${RISK_STYLE[analysis.risk_level]}`}>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${RISK_STYLE[analysis.risk_level]}`}
+            >
               风险 · {analysis.risk_level}
             </span>
             {saved && (
@@ -246,7 +257,10 @@ export default function Home() {
               </div>
               <ul className="space-y-1.5">
                 {analysis.key_factors.map((f, i) => (
-                  <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex gap-2">
+                  <li
+                    key={i}
+                    className="text-sm text-slate-700 dark:text-slate-300 flex gap-2"
+                  >
                     <span className="text-blue-500 dark:text-blue-400">·</span>
                     <span>{f}</span>
                   </li>
@@ -274,7 +288,10 @@ export default function Home() {
         )}
         <div className="space-y-2">
           {history.map((r) => (
-            <div key={r.id} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/40 p-3 text-sm flex gap-3 items-start">
+            <div
+              key={r.id}
+              className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/40 p-3 text-sm flex gap-3 items-start"
+            >
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2 flex-wrap">
                   <span className="font-medium text-slate-900 dark:text-slate-100">
@@ -287,8 +304,11 @@ export default function Home() {
                     </span>
                   )}
                   {r.change_pct !== null && (
-                    <span className={`text-xs ${r.change_pct >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {r.change_pct >= 0 ? '+' : ''}{fmtNumber(r.change_pct)}%
+                    <span
+                      className={`text-xs ${r.change_pct >= 0 ? "text-rose-500" : "text-emerald-500"}`}
+                    >
+                      {r.change_pct >= 0 ? "+" : ""}
+                      {fmtNumber(r.change_pct)}%
                     </span>
                   )}
                 </div>
@@ -297,14 +317,20 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-col gap-1 items-end shrink-0">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${SENTIMENT_STYLE[r.sentiment]}`}>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${SENTIMENT_STYLE[r.sentiment]}`}
+                >
                   {r.sentiment}
                 </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${RISK_STYLE[r.risk_level]}`}>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${RISK_STYLE[r.risk_level]}`}
+                >
                   {r.risk_level}
                 </span>
                 <span className="text-[10px] text-slate-400">
-                  {new Date(r.created_at).toLocaleString('zh-CN', { hour12: false })}
+                  {new Date(r.created_at).toLocaleString("zh-CN", {
+                    hour12: false,
+                  })}
                 </span>
               </div>
             </div>
@@ -313,7 +339,7 @@ export default function Home() {
       </section>
 
       <footer className="mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
-        数据来源：东方财富 · 分析模型：DeepSeek · 存储：Supabase
+        数据来源：东方财富 / Yahoo Finance · 分析模型：DeepSeek · 存储：Supabase
       </footer>
     </main>
   );
@@ -323,7 +349,9 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-xs text-slate-500 dark:text-slate-400">{label}</div>
-      <div className="font-medium text-slate-900 dark:text-slate-100 mt-0.5">{value}</div>
+      <div className="font-medium text-slate-900 dark:text-slate-100 mt-0.5">
+        {value}
+      </div>
     </div>
   );
 }
