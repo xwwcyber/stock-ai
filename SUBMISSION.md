@@ -8,12 +8,12 @@
 
 ## 📌 项目链接
 
-| 类别 | 链接 |
-|---|---|
-| **🌐 在线访问** | **https://stock-ai-r7qr.onrender.com** |
-| **📦 源码仓库** | https://github.com/xwwcyber/stock-ai |
-| **📄 提交文档** | https://github.com/xwwcyber/stock-ai/blob/main/SUBMISSION.md（即本文件） |
-| **📘 项目 README** | https://github.com/xwwcyber/stock-ai/blob/main/README.md |
+| 类别               | 链接                                                                     |
+| ------------------ | ------------------------------------------------------------------------ |
+| **🌐 在线访问**    | **https://stock-ai-r7qr.onrender.com**                                   |
+| **📦 源码仓库**    | https://github.com/xwwcyber/stock-ai                                     |
+| **📄 提交文档**    | https://github.com/xwwcyber/stock-ai/blob/main/SUBMISSION.md（即本文件） |
+| **📘 项目 README** | https://github.com/xwwcyber/stock-ai/blob/main/README.md                 |
 
 > ⚠️ Render Free 实例 15 分钟无访问会休眠，首次唤醒约 30 秒，请耐心等待。
 
@@ -25,12 +25,12 @@
 
 ### 演示样例
 
-| 输入代码 | 公司 | 市场 |
-|---|---|---|
+| 输入代码 | 公司     | 市场 |
+| -------- | -------- | ---- |
 | `600519` | 贵州茅台 | 沪市 |
 | `000001` | 平安银行 | 深市 |
-| `00700` | 腾讯控股 | 港股 |
-| `AAPL` | 苹果 | 美股 |
+| `00700`  | 腾讯控股 | 港股 |
+| `AAPL`   | 苹果     | 美股 |
 
 ---
 
@@ -51,30 +51,32 @@
 │  └──────────────────────└────────┬──────────────────────┘  │
 └───────────────────────────────────┼────────────────────────┘
                                     │
-            ┌───────────────────────┼───────────────────────┐
-            ▼                       ▼                       ▼
-   ┌────────────────┐    ┌────────────────┐     ┌────────────────┐
-   │  东方财富 HTTP │    │  DeepSeek API  │     │   Supabase     │
-   │  push2.east-   │    │  deepseek-chat │     │   Postgres     │
-   │  money.com     │    │  (兼容 OpenAI) │     │  (REST + RLS)  │
-   └────────────────┘    └────────────────┘     └────────────────┘
+       ┌────────────────────────────┼─────────────────────────┐
+       ▼                            ▼                         ▼
+┌────────────────────┐      ┌────────────────┐      ┌────────────────┐
+│  行情四级降级链路  │      │  DeepSeek API  │      │   Supabase     │
+│  ① 东方财富 push2  │      │  deepseek-chat │      │   Postgres     │
+│  ② 腾讯财经 qt     │      │  (兼容 OpenAI) │      │  (REST + RLS)  │
+│  ③ Twelve Data API │      └────────────────┘      └────────────────┘
+│  ④ Yahoo Finance   │
+└────────────────────┘
 ```
 
 ### 技术选型矩阵
 
-| 层级 | 选型 | 版本 | 选择理由 |
-|---|---|---|---|
-| **前端框架** | Next.js (App Router) | 16.2.6 | 全栈一体化，API Route 替代独立后端，Render 单服务部署 |
-| **UI 语言** | TypeScript + React | TS 5 / React 19 | 类型安全，配合 LLM 返回的结构化数据更可靠 |
-| **样式** | Tailwind CSS | 4.x | 工具类样式快速搭暗色模式 / 响应式 |
-| **后端运行时** | Node (Next.js API Routes) | Node 24 | 与前端共享代码（如类型定义）、共享 `lib/*` |
-| **行情数据源** | 东方财富公开 HTTP 接口 | - | 零 API Key、A股/港股/美股全覆盖、AKShare 底层同源 |
-| **LLM** | DeepSeek（`deepseek-chat`） | 兼容 OpenAI SDK v6 | 国内访问稳定 / 价格低 / 支持 `response_format: json_object` |
-| **数据库** | Supabase Postgres | - | 免费 500MB / 自带 REST API / RLS 行级安全 |
-| **Auth & 凭据** | Supabase Publishable Key | 新版 API Key 体系 | 前端可直接持有，搭配 RLS 策略限权 |
-| **部署平台** | Render Web Service | Free Tier | GitHub 直连自动部署 / 一键环境变量 |
-| **代码托管** | GitHub | - | 与 Render 联动持续部署 |
-| **包管理** | npm | 11.6.2 | Next.js 默认推荐 |
+| 层级            | 选型                        | 版本               | 选择理由                                                            |
+| --------------- | --------------------------- | ------------------ | ------------------------------------------------------------------- |
+| **前端框架**    | Next.js (App Router)        | 16.2.6             | 全栈一体化，API Route 替代独立后端，Render 单服务部署               |
+| **UI 语言**     | TypeScript + React          | TS 5 / React 19    | 类型安全，配合 LLM 返回的结构化数据更可靠                           |
+| **样式**        | Tailwind CSS                | 4.x                | 工具类样式快速搭暗色模式 / 响应式                                   |
+| **后端运行时**  | Node (Next.js API Routes)   | Node 24            | 与前端共享代码（如类型定义）、共享 `lib/*`                          |
+| **行情数据源**  | 四级降级（详见 §5）         | -                  | 东方财富 → 腾讯财经 → Twelve Data → Yahoo，多源容错应对海外 IP 屏蔽 |
+| **LLM**         | DeepSeek（`deepseek-chat`） | 兼容 OpenAI SDK v6 | 国内访问稳定 / 价格低 / 支持 `response_format: json_object`         |
+| **数据库**      | Supabase Postgres           | -                  | 免费 500MB / 自带 REST API / RLS 行级安全                           |
+| **Auth & 凭据** | Supabase Publishable Key    | 新版 API Key 体系  | 前端可直接持有，搭配 RLS 策略限权                                   |
+| **部署平台**    | Render Web Service          | Free Tier          | GitHub 直连自动部署 / 一键环境变量                                  |
+| **代码托管**    | GitHub                      | -                  | 与 Render 联动持续部署                                              |
+| **包管理**      | npm                         | 11.6.2             | Next.js 默认推荐                                                    |
 
 ### 关键依赖
 
@@ -84,7 +86,7 @@
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "openai": "^6.38.0",            // ← 兼容 DeepSeek 的 OpenAI SDK
+    "openai": "^6.38.0", // ← 兼容 DeepSeek 的 OpenAI SDK
     "@supabase/supabase-js": "^2.106.1"
   },
   "devDependencies": {
@@ -136,7 +138,9 @@ stock/
 │   ├── page.tsx                # 主界面（输入框/结果卡/历史）
 │   └── globals.css
 ├── lib/
-│   ├── eastmoney.ts            # 东方财富封装 + 多市场代码识别
+│   ├── eastmoney.ts            # 主入口 fetchQuote 四级降级 + 东方财富 push2
+│   ├── tencent.ts              # 腾讯财经 qt.gtimg.cn（A股/港股 兜底）
+│   ├── twelvedata.ts           # Twelve Data API（美股 兜底，要 API key）
 │   ├── deepseek.ts             # LLM 调用 + 三层 JSON 防御
 │   └── supabase.ts             # 客户端 + saveAnalysis/listAnalyses
 ├── supabase/schema.sql         # 建表 + RLS 策略
@@ -178,12 +182,12 @@ const SYSTEM_PROMPT = `你是一名资深股票分析师。基于用户给出的
 
 **关键技巧**：
 
-| 技巧 | 为什么有效 |
-|---|---|
-| 逐字段列约束（类型 + 取值 + 字数限制） | 远比一句「输出 JSON」具体，模型可遵循的颗粒度细 |
-| 枚举值用 TypeScript 字面量写出（`"Bullish" \| "Neutral" \| "Bearish"`） | 模型会照抄，不会自创 `Up/Down` |
-| 显式禁止 markdown 包裹（"不要使用 markdown 代码块包裹"） | 阻止 ` ```json ... ``` ` 这种破坏 JSON.parse 的格式 |
-| 加上「避免任何投资建议」 | 合规友好，同时降低模型发散 |
+| 技巧                                                                    | 为什么有效                                          |
+| ----------------------------------------------------------------------- | --------------------------------------------------- |
+| 逐字段列约束（类型 + 取值 + 字数限制）                                  | 远比一句「输出 JSON」具体，模型可遵循的颗粒度细     |
+| 枚举值用 TypeScript 字面量写出（`"Bullish" \| "Neutral" \| "Bearish"`） | 模型会照抄，不会自创 `Up/Down`                      |
+| 显式禁止 markdown 包裹（"不要使用 markdown 代码块包裹"）                | 阻止 ` ```json ... ``` ` 这种破坏 JSON.parse 的格式 |
+| 加上「避免任何投资建议」                                                | 合规友好，同时降低模型发散                          |
 
 ### 第二层：API 调用层强制 JSON 模式
 
@@ -191,13 +195,13 @@ const SYSTEM_PROMPT = `你是一名资深股票分析师。基于用户给出的
 
 ```ts
 const completion = await client.chat.completions.create({
-  model: 'deepseek-chat',
+  model: "deepseek-chat",
   messages: [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: buildUserPrompt(quote) },
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: buildUserPrompt(quote) },
   ],
-  response_format: { type: 'json_object' },   // ← 关键
-  temperature: 0.4,                            // ← 降低发散度
+  response_format: { type: "json_object" }, // ← 关键
+  temperature: 0.4, // ← 降低发散度
   max_tokens: 800,
 });
 ```
@@ -212,23 +216,31 @@ const completion = await client.chat.completions.create({
 
 ```ts
 function validate(data: unknown): Analysis {
-  if (!data || typeof data !== 'object') throw new Error('LLM 输出格式错误');
+  if (!data || typeof data !== "object") throw new Error("LLM 输出格式错误");
   const obj = data as Record<string, unknown>;
 
-  const summary = typeof obj.summary === 'string' ? obj.summary : '';
+  const summary = typeof obj.summary === "string" ? obj.summary : "";
   const sentiment = obj.sentiment;
-  const risk_level = obj.risk_level ?? obj.riskLevel;          // 兼容 camelCase
+  const risk_level = obj.risk_level ?? obj.riskLevel; // 兼容 camelCase
   const key_factors = Array.isArray(obj.key_factors)
     ? obj.key_factors.map(String).slice(0, 6)
     : Array.isArray(obj.keyFactors)
       ? (obj.keyFactors as unknown[]).map(String).slice(0, 6)
       : [];
 
-  if (!summary) throw new Error('summary 字段缺失');
-  if (sentiment !== 'Bullish' && sentiment !== 'Neutral' && sentiment !== 'Bearish') {
+  if (!summary) throw new Error("summary 字段缺失");
+  if (
+    sentiment !== "Bullish" &&
+    sentiment !== "Neutral" &&
+    sentiment !== "Bearish"
+  ) {
     throw new Error(`sentiment 取值非法: ${String(sentiment)}`);
   }
-  if (risk_level !== 'Low' && risk_level !== 'Medium' && risk_level !== 'High') {
+  if (
+    risk_level !== "Low" &&
+    risk_level !== "Medium" &&
+    risk_level !== "High"
+  ) {
     throw new Error(`risk_level 取值非法: ${String(risk_level)}`);
   }
 
@@ -262,7 +274,7 @@ function validate(data: unknown): Analysis {
 
 ### 线上真实输出样例
 
-`POST /api/analyze`  Body `{ "symbol": "000001" }`：
+`POST /api/analyze` Body `{ "symbol": "000001" }`：
 
 ```json
 {
@@ -396,16 +408,177 @@ $ curl -X POST http://localhost:3000/api/analyze \
 
 ### 经验总结
 
-| 经验 | 说明 |
-|---|---|
-| **配置类错误用诊断脚本而不是改代码** | 写一段独立的连通性测试，比反复改 SDK 调用更快定位 |
-| **脱敏打印是 AI 协作的必要技巧** | 让 AI 看真实凭据值是错的，但「URL 长这样、Key 长这样」这种结构信息可以放心暴露 |
-| **错误码搜文档** | `PGRST125` 直接对应 PostgREST 的「路径解析失败」，比 google 错误文案更精准 |
-| **诊断脚本要留在仓库里** | `scripts/check-supabase.mjs` 已保留，以后换环境复测可直接跑 |
+| 经验                                 | 说明                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------ |
+| **配置类错误用诊断脚本而不是改代码** | 写一段独立的连通性测试，比反复改 SDK 调用更快定位                              |
+| **脱敏打印是 AI 协作的必要技巧**     | 让 AI 看真实凭据值是错的，但「URL 长这样、Key 长这样」这种结构信息可以放心暴露 |
+| **错误码搜文档**                     | `PGRST125` 直接对应 PostgREST 的「路径解析失败」，比 google 错误文案更精准     |
+| **诊断脚本要留在仓库里**             | `scripts/check-supabase.mjs` 已保留，以后换环境复测可直接跑                    |
 
 ---
 
-## 5️⃣ 本地复现步骤
+## 5️⃣ Debug 记录：线上多源降级演进
+
+### 起因：东方财富在 Render 海外 IP 返回 502
+
+部署到 Render 后访问线上版查股票，前端始终报错：
+
+```
+行情数据获取失败: 行情接口请求失败: 502
+```
+
+本地开发完全正常，线上一律 502。
+
+### 根因定位
+
+```
+浏览器 ──▶ Render 海外服务器 ──▶ push2.eastmoney.com
+                ↑                          ↑
+            发请求的源 IP 是这里         看到的源 IP 是 Render 海外机房
+```
+
+Next.js API Route 跑在 Render 服务端，向东方财富发请求时源 IP 是 Render 的海外机房 IP，**用户浏览器开不开 VPN 完全无关**。东方财富 WAF 对海外 PaaS（Render/Vercel/Netlify）IP 段批量拦截 → 502 nginx 网关错误。
+
+### 演进过程
+
+#### v1：单源（commit `27bbdba`）
+
+只有东方财富，线上 100% 失败。
+
+#### v2：加 Yahoo chart 兜底（commit `fa005ce`）
+
+```
+fetchQuote()
+  ├── 东方财富 (2s 超时)
+  └── catch → Yahoo Finance chart
+```
+
+线上能跑通了，但 Yahoo chart endpoint **只有价格类字段**，PE / PB / 市值 / 换手率 / 成交额全缺，前端显示 "—"。
+
+#### v3：加 Yahoo quoteSummary 补财务字段（commit `e99be55`）
+
+Yahoo 的 `quoteSummary` endpoint 含 PE / PB / 市值，但需要 **cookie + crumb** 鉴权：
+
+1. `GET fc.yahoo.com/` → 拿 Set-Cookie 里的 A3 cookie
+2. `GET query1.finance.yahoo.com/v1/test/getcrumb` 带 cookie → 拿 crumb 字符串
+3. `GET v10/finance/quoteSummary/AAPL?crumb=xxx` 带 cookie + crumb → 拿 PE/marketCap
+
+线上实测：`getcrumb` 持续返回 **HTTP 429**（Too Many Requests）。
+
+#### v3.5：限流退避 + 单例 Promise（commit `700f1f8`）
+
+防止重试雪崩拖垮 Yahoo 限流配额：
+
+```ts
+let yahooCredsCache = ...;            // 成功凭证缓存 1h
+let yahooCredsBackoffUntil = 0;       // 失败后 5min 退避不重试
+let yahooCredsInFlight: Promise<...> | null = null;  // 单例防并发风暴
+```
+
+但 429 是 **IP 段级别**封禁，退避策略治标不治本——Render 海外共享 IP 池被 Yahoo WAF 整段限流。
+
+#### v4：加 Twelve Data（commit `f5ccd2d`）
+
+Twelve Data 免费版 800 calls/day，宣称覆盖 50+ 市场。美股测试完美：
+
+```
+AAPL: PE 37.43 / 市值 4.54 万亿  ✅
+```
+
+但 A 股 / 港股测试返回：
+
+```
+code=404 status=error
+msg=This symbol is available starting with the Pro or Venture plan.
+```
+
+**Twelve Data 免费版只支持美股**——隐藏限制，文档不显眼，实测才知道。Finnhub 也是一样（国际市场每个 ~$50/月），不是 API key 多少的问题，是商业模式。
+
+#### v5：探测东方财富其他子域 + 引入腾讯财经（commit `b214d1b`，最终方案）
+
+Render Free 不带 Shell，写了一个临时调试 API `/api/em-test`，从服务端并行测多个国内财经 endpoint：
+
+| Endpoint                       | Render 实测 |
+| ------------------------------ | ----------- |
+| `push2.eastmoney.com`          | 502 ❌      |
+| `emweb.eastmoney.com` F10      | **200 ✅**  |
+| `datacenter-web.eastmoney.com` | **200 ✅**  |
+| **`qt.gtimg.cn`**（腾讯财经）  | **200 ✅**  |
+
+**两个关键发现**：
+
+1. 东方财富的封禁**不是统一的**，只封了 `push2` 行情接口，其他子域开放
+2. **腾讯财经 `qt.gtimg.cn` 对 Render 海外 IP 完全开放**，且响应字段最完整
+
+腾讯财经的位置编码格式：
+
+```
+v_sh600519="1~贵州茅台~600519~1285.88~...~19.47~...~16102.69~16102.69~5.94~"
+                                          ↑PE              ↑流通市值 ↑总市值 ↑PB
+```
+
+A 股 / 港股 PE / PB / 市值 / 换手率全部恢复。
+
+### 最终降级链路
+
+源代码 — [`lib/eastmoney.ts` fetchQuote](https://github.com/xwwcyber/stock-ai/blob/main/lib/eastmoney.ts)
+
+```
+┌─────────────────────┐
+│  用户输入股票代码   │
+└──────────┬──────────┘
+           ▼
+┌─────────────────────────────────────────────────────────┐
+│ 1. 东方财富 push2 (2s 超时)                             │
+│    国内 IP 命中；Render 海外 IP 一律 502 → 进入下一级   │
+└──────────┬──────────────────────────────────────────────┘
+           ▼ catch
+┌─────────────────────────────────────────────────────────┐
+│ 2. 腾讯财经 qt.gtimg.cn                                 │
+│    A股/港股 字段最全；美股不在此源 → throw 进入下一级   │
+└──────────┬──────────────────────────────────────────────┘
+           ▼ catch
+┌─────────────────────────────────────────────────────────┐
+│ 3. Twelve Data API（要 TWELVE_DATA_API_KEY）            │
+│    美股全字段；A股/港股 免费版 404 → throw 进入下一级   │
+└──────────┬──────────────────────────────────────────────┘
+           ▼ catch
+┌─────────────────────────────────────────────────────────┐
+│ 4. Yahoo chart endpoint（公开，无 key）                 │
+│    所有市场价格类，缺财务指标，最后一道防线              │
+└──────────┬──────────────────────────────────────────────┘
+           ▼
+┌─────────────────────────────────────────────────────────┐
+│ 全部失败 → 错误聚合抛出                                 │
+│  「东方财富: 502; 腾讯: 解析失败; Twelve Data: 404; …」 │
+└─────────────────────────────────────────────────────────┘
+```
+
+每一级**独立返回完整 Quote 结构**，缺失字段置 0 由前端渲染 `—`。降级是单向的：上层抛错才进下层，成功直接 return。
+
+### 线上实测命中情况
+
+| 输入     | 命中数据源        | PE   | 市值          | 换手率 | PB   |
+| -------- | ----------------- | ---- | ------------- | ------ | ---- |
+| `600519` | 腾讯财经 sh600519 | 19.5 | 1.6 万亿元    | 0.37%  | 5.94 |
+| `00700`  | 腾讯财经 hk00700  | 16.2 | 4 万亿港币    | —      | —    |
+| `AAPL`   | Twelve Data       | 37.4 | 4.54 万亿美元 | 0.3%   | 42.5 |
+
+港股 PB / 换手率显示 `—`：腾讯财经港股字段集天生不含这两项，**是数据源覆盖差异，不是 bug**。前端会原样显示破折号，DeepSeek 提示词里也会被标注「数据缺失」避免编造。
+
+### 经验总结
+
+| 经验                                            | 说明                                                                                                        |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **海外 PaaS 的出口 IP 是黑盒**                  | 国内 API 普遍封 PaaS IP 段，主源依赖国内 API 前要评估部署位置；用户开不开 VPN 与服务端请求无关              |
+| **"封禁不一定是集团级"**                        | 东方财富 push2 封了但 emweb / datacenter-web 没封，逐 endpoint 探测而不是一棒打死整个域名                   |
+| **降级链路要让每一级都独立返回完整 Quote 结构** | 缺字段置 0 由前端展示 `—`；不要把多源合并成"半个 Quote"，降级逻辑会爆炸                                     |
+| **临时调试接口是 Render Free 的探测利器**       | `/api/em-test` 让"哪些 endpoint 海外可达"5 秒出答案；Render Free 不带 Shell 时这是唯一手段，验证完即删      |
+| **免费 API 的隐藏门槛**                         | Twelve Data / Finnhub 免费版**国际市场都要付费**，文档不显眼，必须实测；不能只看"800 calls/day"这种宣传指标 |
+
+---
+
+## 6️⃣ 本地复现步骤
 
 ```bash
 # 1. 克隆
@@ -421,6 +594,7 @@ cp .env.example .env.local
 #   DEEPSEEK_API_KEY=sk-...
 #   SUPABASE_URL=https://xxxxx.supabase.co      ← 切记不带 /rest/v1/
 #   SUPABASE_ANON_KEY=sb_publishable_...
+#   TWELVE_DATA_API_KEY=...        ← 可选，海外部署美股兜底用，本地国内 IP 不需要
 
 # 4. 在 Supabase SQL Editor 跑一次 supabase/schema.sql 建表
 
@@ -436,16 +610,16 @@ node --env-file=.env.local scripts/check-supabase.mjs
 
 ---
 
-## 6️⃣ 总结
+## 7️⃣ 总结
 
-| 任务项 | 完成情况 |
-|---|---|
-| 用户输入股票代码，调用免费 API 获取行情 | ✅ 东方财富，A股/港股/美股 |
-| 点击按钮调用 LLM API 分析数据 | ✅ DeepSeek |
-| LLM 返回严格 JSON 格式（`summary` / `sentiment` / `risk_level`） | ✅ 三层防御保障 |
-| 数据存入 Supabase | ✅ Postgres + RLS |
-| 部署到 Render | ✅ https://stock-ai-r7qr.onrender.com |
-| 代码提交到 GitHub | ✅ https://github.com/xwwcyber/stock-ai |
-| README 包含在线 URL / Prompt / Debug | ✅ |
+| 任务项                                                           | 完成情况                                                            |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 用户输入股票代码，调用免费 API 获取行情                          | ✅ 四级降级（东方财富/腾讯/Twelve Data/Yahoo），A股/港股/美股全覆盖 |
+| 点击按钮调用 LLM API 分析数据                                    | ✅ DeepSeek                                                         |
+| LLM 返回严格 JSON 格式（`summary` / `sentiment` / `risk_level`） | ✅ 三层防御保障                                                     |
+| 数据存入 Supabase                                                | ✅ Postgres + RLS                                                   |
+| 部署到 Render                                                    | ✅ https://stock-ai-r7qr.onrender.com                               |
+| 代码提交到 GitHub                                                | ✅ https://github.com/xwwcyber/stock-ai                             |
+| README 包含在线 URL / Prompt / Debug                             | ✅                                                                  |
 
 > **免责声明**：本项目仅作技术演示与学习用途，AI 分析结果不构成任何投资建议。

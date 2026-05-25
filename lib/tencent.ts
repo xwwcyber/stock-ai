@@ -53,8 +53,14 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
   });
   if (!res.ok) throw new Error(`腾讯财经请求失败: ${res.status}`);
 
-  // GBK 编码：数字部分是 ASCII，中文名按 utf-8 解会乱码（这里不依赖中文名）
-  const text = await res.text();
+  // GBK 编码：Node 22 默认 full-icu 支持 GBK，老 ICU 退回 latin1（数字字段不受影响）
+  const buf = await res.arrayBuffer();
+  let text: string;
+  try {
+    text = new TextDecoder("gbk", { fatal: false }).decode(buf);
+  } catch {
+    text = new TextDecoder("latin1", { fatal: false }).decode(buf);
+  }
   const m = text.match(/="([^"]+)"/);
   if (!m) throw new Error(`腾讯财经解析失败: ${rawSymbol}`);
   const fields = m[1].split("~");
@@ -79,7 +85,11 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
   return {
     symbol: rawSymbol.trim().toUpperCase(),
     fullSymbol: r.ticker,
-    name: rawSymbol.trim().toUpperCase(), // GBK 中文名跳过，用代码占位
+    // fields[1] 是 GBK 中文名；若解码失败含 U+FFFD 替换字符，回落到代码
+    name:
+      fields[1] && !fields[1].includes("�")
+        ? fields[1]
+        : rawSymbol.trim().toUpperCase(),
     price,
     open,
     high,
