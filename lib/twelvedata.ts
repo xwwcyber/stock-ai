@@ -89,12 +89,18 @@ export async function fetchFromTwelveData(rawSymbol: string): Promise<Quote> {
   ]);
 
   if (quoteSettled.status !== "fulfilled") {
-    throw quoteSettled.reason instanceof Error
-      ? quoteSettled.reason
-      : new Error("Twelve Data quote 请求失败");
+    const reason =
+      quoteSettled.reason instanceof Error
+        ? quoteSettled.reason.message
+        : String(quoteSettled.reason);
+    console.error(`[twelvedata] quote fetch 异常 [${rawSymbol}]:`, reason);
+    throw new Error(reason);
   }
   const q = quoteSettled.value;
   if (q.status === "error" || !q.close) {
+    console.error(
+      `[twelvedata] quote 返回无数据 [${rawSymbol}]: code=${q.code ?? "-"} status=${q.status ?? "-"} msg=${q.message ?? "-"}`,
+    );
     throw new Error(`Twelve Data 未查询到: ${q.message || rawSymbol}`);
   }
 
