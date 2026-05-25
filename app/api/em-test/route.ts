@@ -5,22 +5,28 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ENDPOINTS = [
+const ENDPOINTS: Array<{ name: string; url: string; referer?: string }> = [
   {
-    name: "push2 (已知被封作对照)",
-    url: "https://push2.eastmoney.com/api/qt/stock/get?secid=1.600519&fields=f43,f57,f58,f162,f116",
+    name: "push2 (对照组)",
+    url: "https://push2.eastmoney.com/api/qt/stock/get?secid=1.600519&fields=f43,f57,f162,f116",
+    referer: "https://quote.eastmoney.com/",
   },
   {
-    name: "emweb F10 公司资料",
-    url: "https://emweb.eastmoney.com/PC_HSF10/CompanySurvey/PageAjax?code=SH600519",
+    name: "腾讯财经 A 股 sh600519",
+    url: "https://qt.gtimg.cn/q=sh600519",
   },
   {
-    name: "emweb 主要财务指标",
-    url: "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/MainTargetsAjax?code=SH600519",
+    name: "腾讯财经 港股 hk00700",
+    url: "https://qt.gtimg.cn/q=hk00700",
   },
   {
-    name: "datacenter-web 数据中心",
-    url: "https://datacenter-web.eastmoney.com/api/data/v1/get?columns=ALL&reportName=RPT_F10_FINANCE_MAINFINADATA&filter=(SECUCODE%3D%22600519.SH%22)&pageNumber=1&pageSize=1",
+    name: "腾讯财经 美股 usAAPL.OQ",
+    url: "https://qt.gtimg.cn/q=usAAPL.OQ",
+  },
+  {
+    name: "新浪财经 A 股 sh600519",
+    url: "https://hq.sinajs.cn/list=sh600519",
+    referer: "https://finance.sina.com.cn/",
   },
 ];
 
@@ -29,21 +35,24 @@ export async function GET() {
     ENDPOINTS.map(async (e) => {
       const t0 = Date.now();
       try {
+        const headers: Record<string, string> = {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        };
+        if (e.referer) headers.Referer = e.referer;
         const res = await fetch(e.url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            Referer: "https://quote.eastmoney.com/",
-          },
+          headers,
           cache: "no-store",
           signal: AbortSignal.timeout(5000),
         });
-        const text = await res.text();
+        // GBK 编码（腾讯/新浪）也按 latin1 取出可读片段
+        const buf = await res.arrayBuffer();
+        const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
         return {
           name: e.name,
           status: res.status,
           contentType: res.headers.get("content-type"),
-          bodyLength: text.length,
+          bodyLength: buf.byteLength,
           bodySnippet: text.slice(0, 300),
           elapsedMs: Date.now() - t0,
         };
