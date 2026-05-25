@@ -245,6 +245,14 @@ async function fetchFromYahoo(rawSymbol: string): Promise<Quote> {
       : new Error(`未查询到股票: ${rawSymbol}`);
   }
   const meta = chartSettled.value;
+  if (summarySettled.status === "rejected") {
+    console.error(
+      "[yahoo] quoteSummary 失败:",
+      summarySettled.reason instanceof Error
+        ? summarySettled.reason.message
+        : summarySettled.reason,
+    );
+  }
   const summary =
     summarySettled.status === "fulfilled" ? summarySettled.value : null;
 
