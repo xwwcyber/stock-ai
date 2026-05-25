@@ -339,7 +339,8 @@ export default function Home() {
       </section>
 
       <footer className="mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
-        数据来源：东方财富 / Yahoo Finance · 分析模型：DeepSeek · 存储：Supabase
+        数据来源：东方财富 / 腾讯财经 / Twelve Data / Yahoo Finance ·
+        分析模型：DeepSeek · 存储：Supabase
       </footer>
     </main>
   );
