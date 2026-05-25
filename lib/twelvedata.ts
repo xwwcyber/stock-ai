@@ -53,10 +53,8 @@ function toTwelveDataSymbol(
   }
   if (/^\d{6}$/.test(s)) {
     if (s.startsWith("6")) return { symbol: s, exchange: "SSE", market: "SH" };
-    if (/^[03]/.test(s))
-      return { symbol: s, exchange: "SZSE", market: "SZ" };
-    if (/^[48]/.test(s))
-      return { symbol: s, exchange: "BSE", market: "BJ" };
+    if (/^[03]/.test(s)) return { symbol: s, exchange: "SZSE", market: "SZ" };
+    if (/^[48]/.test(s)) return { symbol: s, exchange: "BSE", market: "BJ" };
   }
   if (/^[A-Z]{1,5}$/.test(s)) return { symbol: s, market: "US" };
   return null;
@@ -97,16 +95,25 @@ export async function fetchFromTwelveData(rawSymbol: string): Promise<Quote> {
   }
   const q = quoteSettled.value;
   if (q.status === "error" || !q.close) {
-    throw new Error(
-      `Twelve Data 未查询到: ${q.message || rawSymbol}`,
-    );
+    throw new Error(`Twelve Data 未查询到: ${q.message || rawSymbol}`);
   }
 
+  let s: TDStatistics | null = null;
   if (statSettled.status === "rejected") {
-    console.error("[twelvedata] statistics 失败:", statSettled.reason);
+    console.error(
+      "[twelvedata] statistics fetch 异常:",
+      statSettled.reason instanceof Error
+        ? statSettled.reason.message
+        : statSettled.reason,
+    );
+  } else if (!statSettled.value.statistics) {
+    // 接口 200 但无 statistics 字段（多半是 plan 限制或市场不支持）
+    console.error(
+      `[twelvedata] statistics 无数据 [${rawSymbol}]: code=${statSettled.value.code ?? "-"} msg=${statSettled.value.message ?? "-"}`,
+    );
+  } else {
+    s = statSettled.value.statistics;
   }
-  const s =
-    statSettled.status === "fulfilled" ? statSettled.value.statistics : null;
 
   const price = tdNum(q.close);
   const prev = tdNum(q.previous_close);
