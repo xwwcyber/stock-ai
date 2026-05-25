@@ -330,6 +330,7 @@ export default function Home() {
                 <span className="text-[10px] text-slate-400">
                   {new Date(r.created_at).toLocaleString("zh-CN", {
                     hour12: false,
+                    timeZone: "Asia/Shanghai",
                   })}
                 </span>
               </div>
