@@ -350,42 +350,68 @@ interface YahooCreds {
   cookie: string;
   crumb: string;
 }
+// 真实浏览器 UA，降低 Yahoo WAF 限流概率
+const YAHOO_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 let yahooCredsCache: { creds: YahooCreds; expiresAt: number } | null = null;
+let yahooCredsBackoffUntil = 0; // 失败后退避到此时间，避免反复打 Yahoo 触发更严限流
+let yahooCredsInFlight: Promise<YahooCreds> | null = null;
 const YAHOO_CREDS_TTL_MS = 60 * 60 * 1000;
+const YAHOO_CREDS_BACKOFF_MS = 5 * 60 * 1000;
 
 async function getYahooCreds(): Promise<YahooCreds> {
   const now = Date.now();
   if (yahooCredsCache && yahooCredsCache.expiresAt > now) {
     return yahooCredsCache.creds;
   }
+  if (yahooCredsBackoffUntil > now) {
+    throw new Error(
+      `Yahoo crumb 退避中（剩余 ${Math.ceil((yahooCredsBackoffUntil - now) / 1000)}s）`,
+    );
+  }
+  if (yahooCredsInFlight) return yahooCredsInFlight;
 
-  // Step 1：fc.yahoo.com 派 A3 cookie；可能 404，但 Set-Cookie 才是目的
-  const cookieRes = await fetch("https://fc.yahoo.com/", {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    redirect: "manual",
-  });
-  const headersWithCookie = cookieRes.headers as Headers & {
-    getSetCookie?: () => string[];
-  };
-  const setCookies = headersWithCookie.getSetCookie?.() ?? [];
-  const cookie = setCookies.map((s) => s.split(";")[0]).join("; ");
-  if (!cookie) throw new Error("Yahoo cookie 获取失败");
+  yahooCredsInFlight = (async (): Promise<YahooCreds> => {
+    try {
+      // Step 1：fc.yahoo.com 派 A3 cookie；可能 404，但 Set-Cookie 才是目的
+      const cookieRes = await fetch("https://fc.yahoo.com/", {
+        headers: { "User-Agent": YAHOO_UA },
+        redirect: "manual",
+      });
+      const headersWithCookie = cookieRes.headers as Headers & {
+        getSetCookie?: () => string[];
+      };
+      const setCookies = headersWithCookie.getSetCookie?.() ?? [];
+      const cookie = setCookies.map((s) => s.split(";")[0]).join("; ");
+      if (!cookie) throw new Error("Yahoo cookie 获取失败");
 
-  // Step 2：拿 crumb
-  const crumbRes = await fetch(
-    "https://query2.finance.yahoo.com/v1/test/getcrumb",
-    {
-      headers: { "User-Agent": "Mozilla/5.0", Cookie: cookie },
-      cache: "no-store",
-    },
-  );
-  if (!crumbRes.ok) throw new Error(`Yahoo crumb 获取失败: ${crumbRes.status}`);
-  const crumb = (await crumbRes.text()).trim();
-  if (!crumb) throw new Error("Yahoo crumb 为空");
+      // Step 2：拿 crumb（query1 比 query2 限流更宽松）
+      const crumbRes = await fetch(
+        "https://query1.finance.yahoo.com/v1/test/getcrumb",
+        {
+          headers: { "User-Agent": YAHOO_UA, Cookie: cookie },
+          cache: "no-store",
+        },
+      );
+      if (!crumbRes.ok)
+        throw new Error(`Yahoo crumb 获取失败: ${crumbRes.status}`);
+      const crumb = (await crumbRes.text()).trim();
+      if (!crumb) throw new Error("Yahoo crumb 为空");
 
-  const creds = { cookie, crumb };
-  yahooCredsCache = { creds, expiresAt: now + YAHOO_CREDS_TTL_MS };
-  return creds;
+      const creds = { cookie, crumb };
+      yahooCredsCache = { creds, expiresAt: Date.now() + YAHOO_CREDS_TTL_MS };
+      return creds;
+    } catch (err) {
+      // 任何失败都进入退避窗口，避免雪崩
+      yahooCredsBackoffUntil = Date.now() + YAHOO_CREDS_BACKOFF_MS;
+      throw err;
+    } finally {
+      yahooCredsInFlight = null;
+    }
+  })();
+
+  return yahooCredsInFlight;
 }
 
 async function fetchYahooQuoteSummary(
@@ -393,9 +419,9 @@ async function fetchYahooQuoteSummary(
 ): Promise<YahooSummaryResult | null> {
   const creds = await getYahooCreds();
   const modules = "summaryDetail,defaultKeyStatistics,price";
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ySymbol)}?modules=${modules}&crumb=${encodeURIComponent(creds.crumb)}`;
+  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ySymbol)}?modules=${modules}&crumb=${encodeURIComponent(creds.crumb)}`;
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0", Cookie: creds.cookie },
+    headers: { "User-Agent": YAHOO_UA, Cookie: creds.cookie },
     cache: "no-store",
   });
   if (!res.ok) {
