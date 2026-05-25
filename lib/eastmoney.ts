@@ -28,10 +28,13 @@ export interface Quote {
 }
 
 // ============================================================
-// 主入口：东方财富 → Twelve Data → Yahoo 三级降级
-// 国内 IP 命中东方财富；海外 IP 走 Twelve Data（要 API key）；
-// 都失败再用 Yahoo（公开 endpoint，但字段不全/限流）
+// 主入口：东方财富 → 腾讯财经 → Twelve Data → Yahoo 四级降级
+// 国内 IP 命中东方财富 push2；海外 IP 时：
+//   A股/港股 → 腾讯财经 qt.gtimg.cn（字段最全）
+//   美股 → Twelve Data（要 API key，A股/港股免费版不支持）
+//   全部失败 → Yahoo chart 兜底（价格类够看）
 // ============================================================
+import { fetchFromTencent } from "./tencent";
 import { fetchFromTwelveData } from "./twelvedata";
 
 export async function fetchQuote(rawSymbol: string): Promise<Quote> {
@@ -47,7 +50,14 @@ export async function fetchQuote(rawSymbol: string): Promise<Quote> {
     clearTimeout(timer);
   }
 
-  // 配了 TWELVE_DATA_API_KEY 才走这一层，没配则跳过
+  // 腾讯财经：A 股/港股 字段全；美股不支持会直接抛错落到下一层
+  try {
+    return await fetchFromTencent(rawSymbol);
+  } catch (e) {
+    errors.push(`腾讯财经: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // Twelve Data：美股全字段，A 股/港股 免费版返回 404，会直接抛错落到下一层
   if (process.env.TWELVE_DATA_API_KEY) {
     try {
       return await fetchFromTwelveData(rawSymbol);
