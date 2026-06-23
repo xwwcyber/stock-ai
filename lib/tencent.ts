@@ -8,6 +8,7 @@
 //   [3] 现价 [4] 昨收 [5] 开盘 [6] 成交量(手) [31] 涨跌额 [32] 涨跌幅%
 //   [33] 最高 [34] 最低 [37] 成交额(万元) [38] 换手率% [39] PE(静态)
 //   [43] 振幅% [44] 总市值(亿元) [45] 流通市值(亿元) [46] PB
+//   [47] 涨停价 [48] 跌停价 [49] 量比
 // 港股位置参考（hk00700）：
 //   [3] 现价 [4] 昨收 [5] 开盘 [6] 成交量(股) [31] 涨跌额 [32] 涨跌幅%
 //   [33] 最高 [34] 最低 [37] 成交额(港币元) [39] PE
@@ -117,9 +118,9 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
     turnoverRate: isHK ? 0 : n(fields[38]),
     amplitudePct:
       n(fields[43]) || (prev && high && low ? ((high - low) / prev) * 100 : 0),
-    volumeRatio: 0,
-    limitUp: 0,
-    limitDown: 0,
+    volumeRatio: isAStock ? n(fields[49]) : 0,
+    limitUp: isAStock ? n(fields[47]) : 0,
+    limitDown: isAStock ? n(fields[48]) : 0,
     pe: n(fields[39]),
     pb,
     marketCap,
