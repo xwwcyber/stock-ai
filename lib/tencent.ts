@@ -43,6 +43,19 @@ function n(v: string | undefined): number {
   return Number.isFinite(x) ? x : 0;
 }
 
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+function getAStockLimitPct(symbol: string, name: string): number {
+  const code = symbol.trim().toUpperCase();
+  const upperName = name.toUpperCase();
+  if (upperName.includes("ST")) return 0.05;
+  if (/^(300|301|688)/.test(code)) return 0.2;
+  if (/^[48]/.test(code)) return 0.3;
+  return 0.1;
+}
+
 export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
   const r = toTencentSymbol(rawSymbol);
   if (!r) throw new Error(`腾讯财经不支持的代码: ${rawSymbol}`);
@@ -95,6 +108,11 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
   let pb = 0;
   if (isUS) pb = n(fields[51]);
   else if (!isHK) pb = n(fields[46]);
+  const safeName =
+    fields[1] && !fields[1].includes("�")
+      ? fields[1]
+      : rawSymbol.trim().toUpperCase();
+  const limitPct = isAStock ? getAStockLimitPct(rawSymbol, safeName) : 0;
 
   return {
     symbol: rawSymbol.trim().toUpperCase(),
@@ -102,10 +120,7 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
     source: "tencent",
     sourceName: "腾讯财经",
     // fields[1] 是 GBK 中文名；若解码失败含 U+FFFD 替换字符，回落到代码
-    name:
-      fields[1] && !fields[1].includes("�")
-        ? fields[1]
-        : rawSymbol.trim().toUpperCase(),
+    name: safeName,
     price,
     open,
     high,
@@ -119,8 +134,8 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
     amplitudePct:
       n(fields[43]) || (prev && high && low ? ((high - low) / prev) * 100 : 0),
     volumeRatio: isAStock ? n(fields[49]) : 0,
-    limitUp: isAStock ? n(fields[47]) : 0,
-    limitDown: isAStock ? n(fields[48]) : 0,
+    limitUp: isAStock ? n(fields[47]) || round2(prev * (1 + limitPct)) : 0,
+    limitDown: isAStock ? n(fields[48]) || round2(prev * (1 - limitPct)) : 0,
     pe: n(fields[39]),
     pb,
     marketCap,
