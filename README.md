@@ -8,7 +8,7 @@
 
 一个用 Next.js + DeepSeek + Supabase 搭的全栈小应用：
 
-- 输入股票代码（A股 6 位 / 港股 5 位 / 美股字母），从东方财富拉取实时行情
+- 输入股票代码（A股 6 位 / 港股 5 位 / 美股字母），从多路行情源拉取实时行情
 - 调用 DeepSeek 让 LLM 返回严格 JSON 结构的分析（`summary` / `sentiment` / `risk_level` / `key_factors`）
 - 结果落入 Supabase Postgres，主页展示历史记录
 
@@ -18,7 +18,7 @@
 | ------ | ------------------------------------------------ |
 | 前端   | Next.js (App Router) + TypeScript + Tailwind CSS |
 | 后端   | Next.js API Routes (Node runtime)                |
-| 行情   | 东方财富公开 HTTP 接口（无需 Key）               |
+| 行情   | 腾讯财经 / 东方财富 / Twelve Data / Yahoo Finance |
 | LLM    | DeepSeek（`deepseek-chat`，兼容 OpenAI SDK）     |
 | 数据库 | Supabase Postgres                                |
 | 部署   | Render Web Service                               |
@@ -36,7 +36,7 @@
 │   ├── page.tsx               # 主界面
 │   └── globals.css
 ├── lib/
-│   ├── eastmoney.ts           # 东方财富行情封装
+│   ├── eastmoney.ts           # 行情主入口：A 股优先腾讯财经，多源降级
 │   ├── deepseek.ts            # DeepSeek 调用 + JSON 校验
 │   └── supabase.ts            # Supabase 客户端 + 读写
 ├── supabase/schema.sql        # 建表 SQL

@@ -78,24 +78,51 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
+  async function fetchHistoryRecords(): Promise<HistoryRecord[]> {
+    const res = await fetch("/api/history");
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error ?? "读取历史失败");
+    }
+    return data.records ?? [];
+  }
+
+  function messageFromError(e: unknown, fallback = "网络错误") {
+    return e instanceof Error ? e.message : fallback;
+  }
+
   async function loadHistory() {
     try {
-      const res = await fetch("/api/history");
-      const data = await res.json();
-      if (!res.ok) {
-        setHistoryError(data.error ?? "读取历史失败");
-        setHistory([]);
-        return;
-      }
+      const records = await fetchHistoryRecords();
       setHistoryError(null);
-      setHistory(data.records ?? []);
+      setHistory(records);
     } catch (e) {
-      setHistoryError(e instanceof Error ? e.message : "网络错误");
+      setHistoryError(messageFromError(e));
+      setHistory([]);
     }
   }
 
   useEffect(() => {
-    loadHistory();
+    let cancelled = false;
+
+    async function loadInitialHistory() {
+      try {
+        const records = await fetchHistoryRecords();
+        if (cancelled) return;
+        setHistoryError(null);
+        setHistory(records);
+      } catch (e) {
+        if (cancelled) return;
+        setHistoryError(messageFromError(e));
+        setHistory([]);
+      }
+    }
+
+    void loadInitialHistory();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function onAnalyze() {
@@ -340,7 +367,7 @@ export default function Home() {
       </section>
 
       <footer className="mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
-        数据来源：东方财富 / 腾讯财经 / Twelve Data / Yahoo Finance ·
+        数据来源：腾讯财经 / 东方财富 / Twelve Data / Yahoo Finance ·
         分析模型：DeepSeek · 存储：Supabase
       </footer>
     </main>

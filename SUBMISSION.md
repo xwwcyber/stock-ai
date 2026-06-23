@@ -55,8 +55,8 @@
        ▼                            ▼                         ▼
 ┌────────────────────┐      ┌────────────────┐      ┌────────────────┐
 │  行情四级降级链路  │      │  DeepSeek API  │      │   Supabase     │
-│  ① 东方财富 push2  │      │  deepseek-chat │      │   Postgres     │
-│  ② 腾讯财经 qt     │      │  (兼容 OpenAI) │      │  (REST + RLS)  │
+│  ① 腾讯财经 qt     │      │  deepseek-chat │      │   Postgres     │
+│  ② 东方财富 push2  │      │  (兼容 OpenAI) │      │  (REST + RLS)  │
 │  ③ Twelve Data API │      └────────────────┘      └────────────────┘
 │  ④ Yahoo Finance   │
 └────────────────────┘
@@ -70,7 +70,7 @@
 | **UI 语言**     | TypeScript + React          | TS 5 / React 19    | 类型安全，配合 LLM 返回的结构化数据更可靠                           |
 | **样式**        | Tailwind CSS                | 4.x                | 工具类样式快速搭暗色模式 / 响应式                                   |
 | **后端运行时**  | Node (Next.js API Routes)   | Node 24            | 与前端共享代码（如类型定义）、共享 `lib/*`                          |
-| **行情数据源**  | 四级降级（详见 §5）         | -                  | 东方财富 → 腾讯财经 → Twelve Data → Yahoo，多源容错应对海外 IP 屏蔽 |
+| **行情数据源**  | 四级降级（详见 §5）         | -                  | A 股：腾讯财经 → 东方财富 → Twelve Data → Yahoo；非 A 股保留东方财富优先，多源容错应对海外 IP 屏蔽 |
 | **LLM**         | DeepSeek（`deepseek-chat`） | 兼容 OpenAI SDK v6 | 国内访问稳定 / 价格低 / 支持 `response_format: json_object`         |
 | **数据库**      | Supabase Postgres           | -                  | 免费 500MB / 自带 REST API / RLS 行级安全                           |
 | **Auth & 凭据** | Supabase Publishable Key    | 新版 API Key 体系  | 前端可直接持有，搭配 RLS 策略限权                                   |
@@ -138,8 +138,8 @@ stock/
 │   ├── page.tsx                # 主界面（输入框/结果卡/历史）
 │   └── globals.css
 ├── lib/
-│   ├── eastmoney.ts            # 主入口 fetchQuote 四级降级 + 东方财富 push2
-│   ├── tencent.ts              # 腾讯财经 qt.gtimg.cn（A股/港股 兜底）
+│   ├── eastmoney.ts            # 主入口 fetchQuote 四级降级，A 股优先腾讯财经
+│   ├── tencent.ts              # 腾讯财经 qt.gtimg.cn（A股首选，港股/美股兜底）
 │   ├── twelvedata.ts           # Twelve Data API（美股 兜底，要 API key）
 │   ├── deepseek.ts             # LLM 调用 + 三层 JSON 防御
 │   └── supabase.ts             # 客户端 + saveAnalysis/listAnalyses
@@ -529,12 +529,12 @@ A 股 / 港股 PE / PB / 市值 / 换手率全部恢复。
 └──────────┬──────────┘
            ▼
 ┌─────────────────────────────────────────────────────────┐
-│ 1. 东方财富 push2 (2s 超时)                             │
+│ 1. 腾讯财经 qt.gtimg.cn                                 │
 │    国内 IP 命中；Render 海外 IP 一律 502 → 进入下一级   │
 └──────────┬──────────────────────────────────────────────┘
            ▼ catch
 ┌─────────────────────────────────────────────────────────┐
-│ 2. 腾讯财经 qt.gtimg.cn                                 │
+│ 2. 东方财富 push2 (2s 超时)                             │
 │    A股/港股 字段最全；美股不在此源 → throw 进入下一级   │
 └──────────┬──────────────────────────────────────────────┘
            ▼ catch
@@ -614,7 +614,7 @@ node --env-file=.env.local scripts/check-supabase.mjs
 
 | 任务项                                                           | 完成情况                                                            |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------- |
-| 用户输入股票代码，调用免费 API 获取行情                          | ✅ 四级降级（东方财富/腾讯/Twelve Data/Yahoo），A股/港股/美股全覆盖 |
+| 用户输入股票代码，调用免费 API 获取行情                          | ✅ 四级降级（A 股优先腾讯；东方财富/Twelve Data/Yahoo 兜底），A股/港股/美股全覆盖 |
 | 点击按钮调用 LLM API 分析数据                                    | ✅ DeepSeek                                                         |
 | LLM 返回严格 JSON 格式（`summary` / `sentiment` / `risk_level`） | ✅ 三层防御保障                                                     |
 | 数据存入 Supabase                                                | ✅ Postgres + RLS                                                   |

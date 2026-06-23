@@ -1,4 +1,4 @@
-// 行情数据封装：东方财富优先，海外环境兜底走 Yahoo Finance
+// 行情数据封装：A 股优先腾讯财经，海外环境兜底走 Yahoo Finance
 //
 // 东方财富字段含义（社区/逆向）：
 // f43 现价 f44 最高 f45 最低 f46 开盘 f60 昨收
@@ -28,8 +28,9 @@ export interface Quote {
 }
 
 // ============================================================
-// 主入口：东方财富 → 腾讯财经 → Twelve Data → Yahoo 四级降级
-// 国内 IP 命中东方财富 push2；海外 IP 时：
+// 主入口：A 股按腾讯财经 → 东方财富 → Twelve Data → Yahoo 降级
+// 非 A 股保留东方财富 → 腾讯财经 → Twelve Data → Yahoo 降级
+// 这样吸收 a-stock-data 对 A 股实时行情的取向，同时不丢港股/美股能力：
 //   A股/港股/美股 → 腾讯财经 qt.gtimg.cn（字段最全，全市场覆盖）
 //   Twelve Data 作为美股冗余（要 API key，A股/港股免费版不支持）
 //   全部失败 → Yahoo chart 兜底（价格类够看）
@@ -38,23 +39,33 @@ import { fetchFromTencent } from "./tencent";
 import { fetchFromTwelveData } from "./twelvedata";
 
 export async function fetchQuote(rawSymbol: string): Promise<Quote> {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 2000);
   const errors: string[] = [];
 
-  try {
-    return await fetchFromEastmoney(rawSymbol, ac.signal);
-  } catch (e) {
-    errors.push(`东方财富: ${e instanceof Error ? e.message : String(e)}`);
-  } finally {
-    clearTimeout(timer);
-  }
+  if (isAStockSymbol(rawSymbol)) {
+    try {
+      return await fetchFromTencent(rawSymbol);
+    } catch (e) {
+      errors.push(`腾讯财经: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
-  // 腾讯财经：A 股/港股 字段全；美股不支持会直接抛错落到下一层
-  try {
-    return await fetchFromTencent(rawSymbol);
-  } catch (e) {
-    errors.push(`腾讯财经: ${e instanceof Error ? e.message : String(e)}`);
+    try {
+      return await fetchFromEastmoneyWithTimeout(rawSymbol);
+    } catch (e) {
+      errors.push(`东方财富: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  } else {
+    try {
+      return await fetchFromEastmoneyWithTimeout(rawSymbol);
+    } catch (e) {
+      errors.push(`东方财富: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // 腾讯财经：港股/美股可兜底；不支持会直接抛错落到下一层
+    try {
+      return await fetchFromTencent(rawSymbol);
+    } catch (e) {
+      errors.push(`腾讯财经: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   // Twelve Data：美股全字段，A 股/港股 免费版返回 404，会直接抛错落到下一层
@@ -75,8 +86,25 @@ export async function fetchQuote(rawSymbol: string): Promise<Quote> {
   throw new Error(`行情数据获取失败（${errors.join("; ")}）`);
 }
 
+function isAStockSymbol(rawSymbol: string): boolean {
+  const s = rawSymbol.trim();
+  return /^\d{6}$/.test(s) && /^[60348]/.test(s);
+}
+
+async function fetchFromEastmoneyWithTimeout(
+  rawSymbol: string,
+): Promise<Quote> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 2000);
+  try {
+    return await fetchFromEastmoney(rawSymbol, ac.signal);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ============================================================
-// 源 1：东方财富（字段全，国内 IP 友好）
+// 源：东方财富（字段全，国内 IP 友好）
 // ============================================================
 
 // 0=深市 1=沪市 116=港股 105/106/107=美股 90=北交所
