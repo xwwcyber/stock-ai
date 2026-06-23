@@ -34,7 +34,7 @@ export interface Quote {
 }
 
 // ============================================================
-// 主入口：A 股按腾讯财经 → 东方财富 → Twelve Data → Yahoo 降级
+// 主入口：A 股按腾讯财经主行情 + 东方财富补字段 → 东方财富 → Twelve Data → Yahoo 降级
 // 非 A 股保留东方财富 → 腾讯财经 → Twelve Data → Yahoo 降级
 // 这样吸收 a-stock-data 对 A 股实时行情的取向，同时不丢港股/美股能力：
 //   A股/港股/美股 → 腾讯财经 qt.gtimg.cn（字段最全，全市场覆盖）
@@ -49,7 +49,8 @@ export async function fetchQuote(rawSymbol: string): Promise<Quote> {
 
   if (isAStockSymbol(rawSymbol)) {
     try {
-      return await fetchFromTencent(rawSymbol);
+      const quote = await fetchFromTencent(rawSymbol);
+      return await fillAStockFieldsFromEastmoney(rawSymbol, quote);
     } catch (e) {
       errors.push(`腾讯财经: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -106,6 +107,29 @@ async function fetchFromEastmoneyWithTimeout(
     return await fetchFromEastmoney(rawSymbol, ac.signal);
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function fillAStockFieldsFromEastmoney(
+  rawSymbol: string,
+  quote: Quote,
+): Promise<Quote> {
+  try {
+    const eastmoney = await fetchFromEastmoneyWithTimeout(rawSymbol);
+    return {
+      ...quote,
+      sourceName: `${quote.sourceName} + 东方财富`,
+      volumeRatio: quote.volumeRatio || eastmoney.volumeRatio,
+      limitUp: quote.limitUp || eastmoney.limitUp,
+      limitDown: quote.limitDown || eastmoney.limitDown,
+      amplitudePct: quote.amplitudePct || eastmoney.amplitudePct,
+    };
+  } catch (e) {
+    console.error(
+      "[quote] 东方财富补字段失败:",
+      e instanceof Error ? e.message : e,
+    );
+    return quote;
   }
 }
 
