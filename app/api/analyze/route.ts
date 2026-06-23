@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchQuote } from '@/lib/eastmoney';
 import { analyzeQuote } from '@/lib/deepseek';
 import { saveAnalysis } from '@/lib/supabase';
+import { fetchTrendSnapshot } from '@/lib/baidu';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const quote = await fetchQuote(symbol);
-    const analysis = await analyzeQuote(quote);
+    const trend = await fetchTrendSnapshot(symbol).catch((e) => {
+      console.error('[trend] 趋势数据不可用:', e);
+      return null;
+    });
+    const analysis = await analyzeQuote(quote, trend);
 
     // 落库（失败不阻断主流程）
     const persisted = await saveAnalysis(quote, analysis).catch((e) => {
@@ -32,6 +37,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       quote,
+      trend,
       analysis,
       saved: !!persisted,
       record_id: persisted?.id ?? null,

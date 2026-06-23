@@ -18,7 +18,7 @@
 | ------ | ------------------------------------------------ |
 | 前端   | Next.js (App Router) + TypeScript + Tailwind CSS |
 | 后端   | Next.js API Routes (Node runtime)                |
-| 行情   | 腾讯财经 / 东方财富 / Twelve Data / Yahoo Finance |
+| 行情   | 腾讯财经 / 百度股市通 / 东方财富 / Twelve Data / Yahoo Finance |
 | LLM    | DeepSeek（`deepseek-chat`，兼容 OpenAI SDK）     |
 | 数据库 | Supabase Postgres                                |
 | 部署   | Render Web Service                               |
@@ -31,12 +31,14 @@
 │   ├── api/
 │   │   ├── analyze/route.ts   # POST 触发分析 + 落库
 │   │   ├── quote/route.ts     # GET 查询行情
+│   │   ├── trend/route.ts     # GET 查询 K 线均线趋势
 │   │   └── history/route.ts   # GET 历史记录
 │   ├── layout.tsx
 │   ├── page.tsx               # 主界面
 │   └── globals.css
 ├── lib/
 │   ├── eastmoney.ts           # 行情主入口：A 股优先腾讯财经，多源降级
+│   ├── baidu.ts               # 百度股市通 K 线 + MA5/10/20
 │   ├── deepseek.ts            # DeepSeek 调用 + JSON 校验
 │   └── supabase.ts            # Supabase 客户端 + 读写
 ├── supabase/schema.sql        # 建表 SQL
@@ -114,6 +116,7 @@ git push -u origin main
 | 路径                       | 方法              | 说明                              |
 | -------------------------- | ----------------- | --------------------------------- |
 | `/api/quote?symbol=600519` | GET               | 返回行情 JSON                     |
+| `/api/trend?symbol=600519` | GET               | 返回百度 K 线 + MA5/10/20 趋势   |
 | `/api/analyze`             | POST `{ symbol }` | 返回 `{ quote, analysis, saved }` |
 | `/api/history`             | GET               | 返回最近 20 条历史记录            |
 

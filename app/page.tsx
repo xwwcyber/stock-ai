@@ -34,6 +34,25 @@ interface Analysis {
   key_factors: string[];
 }
 
+interface TrendPoint {
+  date: string;
+  open: number;
+  close: number;
+  high: number;
+  low: number;
+  volume: number;
+  amount: number;
+  ma5: number;
+  ma10: number;
+  ma20: number;
+}
+
+interface TrendSnapshot {
+  sourceName: string;
+  latest: TrendPoint;
+  previous: TrendPoint | null;
+}
+
 interface HistoryRecord {
   id: string;
   symbol: string;
@@ -79,6 +98,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [trend, setTrend] = useState<TrendSnapshot | null>(null);
   const [saved, setSaved] = useState(false);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -140,6 +160,7 @@ export default function Home() {
     setError(null);
     setQuote(null);
     setAnalysis(null);
+    setTrend(null);
     setSaved(false);
 
     try {
@@ -154,6 +175,7 @@ export default function Home() {
         return;
       }
       setQuote(data.quote);
+      setTrend(data.trend ?? null);
       setAnalysis(data.analysis);
       setSaved(Boolean(data.saved));
       if (data.saved) loadHistory();
@@ -323,6 +345,66 @@ export default function Home() {
           <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
             * AI 分析仅供学习参考，不构成投资建议
           </p>
+        </section>
+      )}
+
+      {trend && (
+        <section className="mt-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/50 backdrop-blur shadow-sm p-5">
+          <div className="flex items-baseline justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                趋势快照
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                {trend.sourceName} · {trend.latest.date}
+              </p>
+            </div>
+            {trend.previous && (
+              <div
+                className={`text-sm font-medium ${
+                  trend.latest.close >= trend.previous.close
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}
+              >
+                较前收{" "}
+                {fmtNumber(
+                  ((trend.latest.close - trend.previous.close) /
+                    trend.previous.close) *
+                    100,
+                )}
+                %
+              </div>
+            )}
+          </div>
+          <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <Stat label="收盘" value={fmtNumber(trend.latest.close)} />
+            <Stat label="最高" value={fmtNumber(trend.latest.high)} />
+            <Stat label="最低" value={fmtNumber(trend.latest.low)} />
+            <Stat label="成交额" value={fmtBig(trend.latest.amount)} />
+            <Stat
+              label="MA5"
+              value={trend.latest.ma5 ? fmtNumber(trend.latest.ma5) : "-"}
+            />
+            <Stat
+              label="MA10"
+              value={trend.latest.ma10 ? fmtNumber(trend.latest.ma10) : "-"}
+            />
+            <Stat
+              label="MA20"
+              value={trend.latest.ma20 ? fmtNumber(trend.latest.ma20) : "-"}
+            />
+            <Stat
+              label="均线位置"
+              value={
+                trend.latest.ma20
+                  ? trend.latest.close >= trend.latest.ma20
+                    ? "MA20 上方"
+                    : "MA20 下方"
+                  : "-"
+              }
+            />
+          </div>
         </section>
       )}
 

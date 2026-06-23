@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { Quote } from "./eastmoney";
+import type { TrendSnapshot } from "./baidu";
 
 // DeepSeek 兼容 OpenAI SDK，只需替换 baseURL
 function getClient() {
@@ -31,7 +32,29 @@ const SYSTEM_PROMPT = `你是一名资深股票分析师。基于用户给出的
 
 只返回 JSON，不要任何解释性前后缀，不要使用 markdown 代码块包裹。`;
 
-function buildUserPrompt(q: Quote): string {
+function trendPrompt(trend: TrendSnapshot | null): string {
+  if (!trend) return "趋势: 数据缺失";
+  const { latest, previous } = trend;
+  const prevClose = previous?.close;
+  const closeChangePct =
+    prevClose && latest.close
+      ? ((latest.close - prevClose) / prevClose) * 100
+      : 0;
+  const maState = [
+    latest.ma5 ? `MA5 ${latest.ma5}` : "",
+    latest.ma10 ? `MA10 ${latest.ma10}` : "",
+    latest.ma20 ? `MA20 ${latest.ma20}` : "",
+  ]
+    .filter(Boolean)
+    .join(" / ");
+
+  return `趋势数据源: ${trend.sourceName}
+最近K线: ${latest.date} 收 ${latest.close} / 高 ${latest.high} / 低 ${latest.low}${closeChangePct ? ` / 较前收 ${closeChangePct.toFixed(2)}%` : ""}
+均线: ${maState || "数据缺失"}
+均线位置: 收盘价${latest.ma5 ? (latest.close >= latest.ma5 ? "高于" : "低于") + "MA5" : "缺MA5"}、${latest.ma10 ? (latest.close >= latest.ma10 ? "高于" : "低于") + "MA10" : "缺MA10"}、${latest.ma20 ? (latest.close >= latest.ma20 ? "高于" : "低于") + "MA20" : "缺MA20"}`;
+}
+
+function buildUserPrompt(q: Quote, trend: TrendSnapshot | null): string {
   const na = (v: number, suffix = "") => (v ? `${v}${suffix}` : "数据缺失");
   const naPct = (v: number) => (v ? `${v.toFixed(2)}%` : "数据缺失");
   return `股票: ${q.name || q.symbol} (${q.symbol}) [${q.market}]
@@ -44,19 +67,23 @@ function buildUserPrompt(q: Quote): string {
 涨跌停: 涨停 ${na(q.limitUp)} / 跌停 ${na(q.limitDown)}
 估值: PE ${na(q.pe)} / PB ${na(q.pb)}
 市值: 总 ${na(q.marketCap)} / 流通 ${na(q.floatCap)}
+${trendPrompt(trend)}
 
 注意：标注"数据缺失"的字段说明当前数据源不提供，请勿据此判断或在分析中编造数值。
 请基于以上可用数据输出分析。`;
 }
 
-export async function analyzeQuote(quote: Quote): Promise<Analysis> {
+export async function analyzeQuote(
+  quote: Quote,
+  trend: TrendSnapshot | null = null,
+): Promise<Analysis> {
   const client = getClient();
 
   const completion = await client.chat.completions.create({
     model: "deepseek-chat",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: buildUserPrompt(quote) },
+      { role: "user", content: buildUserPrompt(quote, trend) },
     ],
     response_format: { type: "json_object" },
     temperature: 0.4,
