@@ -35,11 +35,13 @@ function buildUserPrompt(q: Quote): string {
   const na = (v: number, suffix = "") => (v ? `${v}${suffix}` : "数据缺失");
   const naPct = (v: number) => (v ? `${v.toFixed(2)}%` : "数据缺失");
   return `股票: ${q.name || q.symbol} (${q.symbol}) [${q.market}]
+数据源: ${q.sourceName}
 现价: ${q.price}
 今日: 开 ${q.open} / 高 ${q.high} / 低 ${q.low} / 昨收 ${q.prevClose}
 涨跌: ${q.change >= 0 ? "+" : ""}${q.change} (${q.changePct.toFixed(2)}%)
 成交量: ${na(q.volume, " 手")}, 成交额: ${na(q.turnover)}
-换手率: ${naPct(q.turnoverRate)}
+换手率: ${naPct(q.turnoverRate)}, 振幅: ${naPct(q.amplitudePct)}, 量比: ${na(q.volumeRatio)}
+涨跌停: 涨停 ${na(q.limitUp)} / 跌停 ${na(q.limitDown)}
 估值: PE ${na(q.pe)} / PB ${na(q.pb)}
 市值: 总 ${na(q.marketCap)} / 流通 ${na(q.floatCap)}
 

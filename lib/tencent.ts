@@ -7,7 +7,7 @@
 // A 股位置参考（sh600519 / sz000001 / sh688xxx 都适用）：
 //   [3] 现价 [4] 昨收 [5] 开盘 [6] 成交量(手) [31] 涨跌额 [32] 涨跌幅%
 //   [33] 最高 [34] 最低 [37] 成交额(万元) [38] 换手率% [39] PE(静态)
-//   [44] 流通市值(亿元) [45] 总市值(亿元) [46] PB
+//   [43] 振幅% [44] 总市值(亿元) [45] 流通市值(亿元) [46] PB
 // 港股位置参考（hk00700）：
 //   [3] 现价 [4] 昨收 [5] 开盘 [6] 成交量(股) [31] 涨跌额 [32] 涨跌幅%
 //   [33] 最高 [34] 最低 [37] 成交额(港币元) [39] PE
@@ -84,9 +84,12 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
   const isHK = r.market === "HK";
   const isUS = r.market === "US";
   const turnover = isHK || isUS ? n(fields[37]) : n(fields[37]) * 10000;
-  // 市值单位：三种市场都是"亿"（亿元/亿港币/亿美元），统一 ×1e8
-  const marketCap = n(fields[45]) * 1e8;
-  const floatCap = n(fields[44]) * 1e8;
+  // 市值单位：三种市场都是"亿"（亿元/亿港币/亿美元），统一 ×1e8。
+  // a-stock-data 对 A 股字段的经验是 [44] 总市值、[45] 流通市值；
+  // 港股/美股保留原项目里验证过的 [45] 总市值、[44] 流通市值。
+  const isAStock = !isHK && !isUS;
+  const marketCap = n(fields[isAStock ? 44 : 45]) * 1e8;
+  const floatCap = n(fields[isAStock ? 45 : 44]) * 1e8;
   // PB 位置：A 股在 [46]，美股在 [51]（[46] 是英文公司名），港股无
   let pb = 0;
   if (isUS) pb = n(fields[51]);
@@ -95,6 +98,8 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
   return {
     symbol: rawSymbol.trim().toUpperCase(),
     fullSymbol: r.ticker,
+    source: "tencent",
+    sourceName: "腾讯财经",
     // fields[1] 是 GBK 中文名；若解码失败含 U+FFFD 替换字符，回落到代码
     name:
       fields[1] && !fields[1].includes("�")
@@ -110,6 +115,11 @@ export async function fetchFromTencent(rawSymbol: string): Promise<Quote> {
     volume: n(fields[6]),
     turnover,
     turnoverRate: isHK ? 0 : n(fields[38]),
+    amplitudePct:
+      n(fields[43]) || (prev && high && low ? ((high - low) / prev) * 100 : 0),
+    volumeRatio: 0,
+    limitUp: 0,
+    limitDown: 0,
     pe: n(fields[39]),
     pb,
     marketCap,

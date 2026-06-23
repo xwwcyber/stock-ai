@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 interface Quote {
   symbol: string;
+  sourceName: string;
   name: string;
   price: number;
   open: number;
@@ -15,6 +16,10 @@ interface Quote {
   volume: number;
   turnover: number;
   turnoverRate: number;
+  amplitudePct: number;
+  volumeRatio: number;
+  limitUp: number;
+  limitDown: number;
   pe: number;
   pb: number;
   marketCap: number;
@@ -213,7 +218,7 @@ export default function Home() {
                 {quote.name}
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                {quote.symbol} · {quote.market}
+                {quote.symbol} · {quote.market} · {quote.sourceName}
               </p>
             </div>
             <div className="text-right">
@@ -246,8 +251,28 @@ export default function Home() {
                 quote.turnoverRate ? fmtNumber(quote.turnoverRate) + "%" : "-"
               }
             />
+            <Stat
+              label="振幅"
+              value={
+                quote.amplitudePct ? fmtNumber(quote.amplitudePct) + "%" : "-"
+              }
+            />
+            <Stat
+              label="量比"
+              value={quote.volumeRatio ? fmtNumber(quote.volumeRatio) : "-"}
+            />
+            <Stat
+              label="涨停"
+              value={quote.limitUp ? fmtNumber(quote.limitUp) : "-"}
+            />
+            <Stat
+              label="跌停"
+              value={quote.limitDown ? fmtNumber(quote.limitDown) : "-"}
+            />
             <Stat label="市盈率" value={quote.pe ? fmtNumber(quote.pe) : "-"} />
+            <Stat label="市净率" value={quote.pb ? fmtNumber(quote.pb) : "-"} />
             <Stat label="总市值" value={fmtBig(quote.marketCap)} />
+            <Stat label="流通市值" value={fmtBig(quote.floatCap)} />
           </div>
         </section>
       )}

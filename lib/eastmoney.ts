@@ -9,6 +9,8 @@
 export interface Quote {
   symbol: string; // 600519
   fullSymbol: string; // 1.600519 或 600519.SS
+  source: "tencent" | "eastmoney" | "twelvedata" | "yahoo";
+  sourceName: string;
   name: string;
   price: number;
   open: number;
@@ -20,6 +22,10 @@ export interface Quote {
   volume: number; // 手
   turnover: number; // 成交额
   turnoverRate: number; // 换手率 %
+  amplitudePct: number; // 振幅 %
+  volumeRatio: number; // 量比
+  limitUp: number; // 涨停价
+  limitDown: number; // 跌停价
   pe: number;
   pb: number;
   marketCap: number; // 总市值
@@ -134,6 +140,8 @@ const EM_FIELDS = [
   "f47",
   "f48",
   "f50",
+  "f51",
+  "f52",
   "f57",
   "f58",
   "f60",
@@ -215,6 +223,8 @@ function mapEastmoney(
   return {
     symbol: String(d.f57 ?? ""),
     fullSymbol,
+    source: "eastmoney",
+    sourceName: "东方财富",
     name: String(d.f58 ?? ""),
     price: px(d.f43),
     high: px(d.f44),
@@ -226,6 +236,13 @@ function mapEastmoney(
     volume: num(d.f47),
     turnover: num(d.f48),
     turnoverRate: pct(d.f168),
+    amplitudePct:
+      px(d.f60) && px(d.f44) && px(d.f45)
+        ? ((px(d.f44) - px(d.f45)) / px(d.f60)) * 100
+        : 0,
+    volumeRatio: pct(d.f50),
+    limitUp: px(d.f51),
+    limitDown: px(d.f52),
     pe: pct(d.f162),
     pb: pct(d.f167),
     marketCap: num(d.f116),
@@ -328,6 +345,8 @@ async function fetchFromYahoo(rawSymbol: string): Promise<Quote> {
   return {
     symbol: rawSymbol.trim().toUpperCase(),
     fullSymbol: r.symbol,
+    source: "yahoo",
+    sourceName: "Yahoo Finance",
     name: meta.longName || meta.shortName || rawSymbol.trim().toUpperCase(),
     price,
     open,
@@ -339,6 +358,10 @@ async function fetchFromYahoo(rawSymbol: string): Promise<Quote> {
     volume,
     turnover,
     turnoverRate,
+    amplitudePct: prev && high && low ? ((high - low) / prev) * 100 : 0,
+    volumeRatio: 0,
+    limitUp: 0,
+    limitDown: 0,
     pe,
     pb,
     marketCap,
