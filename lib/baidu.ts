@@ -12,7 +12,7 @@ export interface TrendPoint {
 }
 
 export interface TrendSnapshot {
-  source: "baidu";
+  source: "baidu" | "eastmoney";
   sourceName: string;
   symbol: string;
   latest: TrendPoint;
@@ -28,6 +28,12 @@ interface BaiduKlineResponse {
       marketData?: string;
     };
   };
+}
+
+interface EastmoneyKlineResponse {
+  data?: {
+    klines?: string[];
+  } | null;
 }
 
 function isAStockSymbol(rawSymbol: string): boolean {
@@ -77,9 +83,26 @@ export async function fetchTrendSnapshot(
 ): Promise<TrendSnapshot> {
   const symbol = rawSymbol.trim().toUpperCase();
   if (!isAStockSymbol(symbol)) {
-    throw new Error(`百度 K 线暂只支持 A 股 6 位代码: ${rawSymbol}`);
+    throw new Error(`趋势快照暂只支持 A 股 6 位代码: ${rawSymbol}`);
   }
 
+  const errors: string[] = [];
+  try {
+    return await fetchBaiduTrendSnapshot(symbol);
+  } catch (e) {
+    errors.push(`百度股市通: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  try {
+    return await fetchEastmoneyTrendSnapshot(symbol);
+  } catch (e) {
+    errors.push(`东方财富日 K: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  throw new Error(`趋势数据获取失败（${errors.join("; ")}）`);
+}
+
+async function fetchBaiduTrendSnapshot(symbol: string): Promise<TrendSnapshot> {
   const url = new URL("https://finance.pae.baidu.com/selfselect/getstockquotation");
   const params: Record<string, string> = {
     all: "1",
@@ -124,11 +147,93 @@ export async function fetchTrendSnapshot(
     .slice(-30);
 
   const latest = points.at(-1);
-  if (!latest) throw new Error(`百度 K 线未返回有效数据: ${rawSymbol}`);
+  if (!latest) throw new Error(`百度 K 线未返回有效数据: ${symbol}`);
 
   return {
     source: "baidu",
     sourceName: "百度股市通",
+    symbol,
+    latest,
+    previous: points.length > 1 ? points[points.length - 2] : null,
+    points,
+  };
+}
+
+function eastmoneySecid(symbol: string): string {
+  return `${symbol.startsWith("6") ? "1" : "0"}.${symbol}`;
+}
+
+function movingAverage(points: TrendPoint[], index: number, days: number): number {
+  const start = index - days + 1;
+  if (start < 0) return 0;
+  const values = points.slice(start, index + 1).map((point) => point.close);
+  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return Number(avg.toFixed(2));
+}
+
+function withMovingAverages(points: TrendPoint[]): TrendPoint[] {
+  return points.map((point, index) => ({
+    ...point,
+    ma5: movingAverage(points, index, 5),
+    ma10: movingAverage(points, index, 10),
+    ma20: movingAverage(points, index, 20),
+  }));
+}
+
+async function fetchEastmoneyTrendSnapshot(
+  symbol: string,
+): Promise<TrendSnapshot> {
+  const url = new URL("https://push2his.eastmoney.com/api/qt/stock/kline/get");
+  const params: Record<string, string> = {
+    secid: eastmoneySecid(symbol),
+    fields1: "f1,f2,f3,f4,f5,f6",
+    fields2: "f51,f52,f53,f54,f55,f56,f57",
+    klt: "101",
+    fqt: "1",
+    end: "20500101",
+    lmt: "80",
+    _: String(Date.now()),
+  };
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      Referer: "https://quote.eastmoney.com/",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`请求失败: ${res.status}`);
+
+  const json = (await res.json()) as EastmoneyKlineResponse;
+  const rawPoints =
+    json.data?.klines
+      ?.map((line) => {
+        const [date, open, close, high, low, volume, amount] = line.split(",");
+        return {
+          date: date ?? "",
+          open: num(open),
+          close: num(close),
+          high: num(high),
+          low: num(low),
+          volume: num(volume),
+          amount: num(amount),
+          ma5: 0,
+          ma10: 0,
+          ma20: 0,
+        };
+      })
+      .filter((point) => point.date && point.close > 0) ?? [];
+  const points = withMovingAverages(rawPoints).slice(-30);
+  const latest = points.at(-1);
+  if (!latest) throw new Error(`未返回有效日 K 数据: ${symbol}`);
+
+  return {
+    source: "eastmoney",
+    sourceName: "东方财富日 K",
     symbol,
     latest,
     previous: points.length > 1 ? points[points.length - 2] : null,

@@ -49,8 +49,10 @@ interface TrendPoint {
 
 interface TrendSnapshot {
   sourceName: string;
+  symbol?: string;
   latest: TrendPoint;
   previous: TrendPoint | null;
+  points?: TrendPoint[];
 }
 
 interface HistoryRecord {
@@ -92,6 +94,21 @@ function fmtBig(n: number): string {
   return n.toFixed(0);
 }
 
+function maPositionSummary(point: TrendPoint): string {
+  const items = [
+    ["MA5", point.ma5],
+    ["MA10", point.ma10],
+    ["MA20", point.ma20],
+  ] as const;
+
+  return items
+    .map(([label, value]) => {
+      if (!value) return `${label} 缺失`;
+      return `${label} ${point.close >= value ? "上方" : "下方"}`;
+    })
+    .join(" / ");
+}
+
 export default function Home() {
   const [symbol, setSymbol] = useState("600519");
   const [loading, setLoading] = useState(false);
@@ -99,6 +116,7 @@ export default function Home() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [trend, setTrend] = useState<TrendSnapshot | null>(null);
+  const [trendError, setTrendError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -161,6 +179,7 @@ export default function Home() {
     setQuote(null);
     setAnalysis(null);
     setTrend(null);
+    setTrendError(null);
     setSaved(false);
 
     try {
@@ -176,6 +195,7 @@ export default function Home() {
       }
       setQuote(data.quote);
       setTrend(data.trend ?? null);
+      setTrendError(data.trend_error ?? null);
       setAnalysis(data.analysis);
       setSaved(Boolean(data.saved));
       if (data.saved) loadHistory();
@@ -377,6 +397,7 @@ export default function Home() {
               </div>
             )}
           </div>
+          <TrendChart trend={trend} />
           <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <Stat label="收盘" value={fmtNumber(trend.latest.close)} />
             <Stat label="最高" value={fmtNumber(trend.latest.high)} />
@@ -396,15 +417,20 @@ export default function Home() {
             />
             <Stat
               label="均线位置"
-              value={
-                trend.latest.ma20
-                  ? trend.latest.close >= trend.latest.ma20
-                    ? "MA20 上方"
-                    : "MA20 下方"
-                  : "-"
-              }
+              value={maPositionSummary(trend.latest)}
             />
           </div>
+        </section>
+      )}
+
+      {!trend && trendError && (
+        <section className="mt-6 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/20 p-5">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            趋势快照
+          </h3>
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+            暂不可用：{trendError}
+          </p>
         </section>
       )}
 
@@ -474,10 +500,168 @@ export default function Home() {
       </section>
 
       <footer className="mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
-        数据来源：腾讯财经 / 东方财富 / Twelve Data / Yahoo Finance ·
+        数据来源：腾讯财经 / 东方财富 / 百度股市通 / Twelve Data / Yahoo Finance ·
         分析模型：DeepSeek · 存储：Supabase
       </footer>
     </main>
+  );
+}
+
+function TrendChart({ trend }: { trend: TrendSnapshot }) {
+  const points = (trend.points?.length ? trend.points : [trend.latest]).filter(
+    (point) => Number.isFinite(point.close) && point.close > 0,
+  );
+
+  if (points.length < 2) return null;
+
+  const width = 640;
+  const height = 220;
+  const pad = { top: 18, right: 18, bottom: 32, left: 48 };
+  const innerWidth = width - pad.left - pad.right;
+  const innerHeight = height - pad.top - pad.bottom;
+  const allValues = points.flatMap((point) =>
+    [point.close, point.ma5, point.ma10, point.ma20].filter(
+      (value) => Number.isFinite(value) && value > 0,
+    ),
+  );
+  const minValue = Math.min(...allValues);
+  const maxValue = Math.max(...allValues);
+  const span = Math.max(maxValue - minValue, 1);
+  const yMin = minValue - span * 0.08;
+  const yMax = maxValue + span * 0.08;
+  const xFor = (index: number) =>
+    pad.left + (index / Math.max(points.length - 1, 1)) * innerWidth;
+  const yFor = (value: number) =>
+    pad.top + ((yMax - value) / Math.max(yMax - yMin, 1)) * innerHeight;
+
+  function pathFor(key: keyof Pick<TrendPoint, "close" | "ma5" | "ma10" | "ma20">) {
+    return points
+      .map((point, index) => {
+        const value = point[key];
+        if (!Number.isFinite(value) || value <= 0) return "";
+        return `${index === 0 ? "M" : "L"} ${xFor(index).toFixed(1)} ${yFor(value).toFixed(1)}`;
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  const series = [
+    { key: "close", label: "收盘", color: "#0f172a" },
+    { key: "ma5", label: "MA5", color: "#f97316" },
+    { key: "ma10", label: "MA10", color: "#2563eb" },
+    { key: "ma20", label: "MA20", color: "#059669" },
+  ] as const;
+  const yTicks = Array.from({ length: 4 }, (_, index) => {
+    const value = yMin + ((yMax - yMin) / 3) * index;
+    return {
+      value,
+      y: yFor(value),
+    };
+  }).reverse();
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+
+  return (
+    <div className="mt-5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/30 p-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs text-slate-500 dark:text-slate-400">
+          日 K · 最近 {points.length} 个交易日
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {series.map((item) => (
+            <span
+              key={item.key}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+            >
+              <span
+                className="h-2 w-4 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              {item.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-60 w-full overflow-hidden">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-full w-full"
+          role="img"
+          aria-label={`${trend.symbol ?? ""} 收盘价与 MA5、MA10、MA20 均线走势`}
+        >
+          <title>收盘价与均线走势</title>
+          <rect width={width} height={height} rx="10" fill="transparent" />
+          {yTicks.map((tick) => (
+            <g key={tick.value}>
+              <line
+                x1={pad.left}
+                x2={width - pad.right}
+                y1={tick.y}
+                y2={tick.y}
+                stroke="currentColor"
+                className="text-slate-200 dark:text-slate-700"
+                strokeDasharray="4 6"
+              />
+              <text
+                x={pad.left - 8}
+                y={tick.y + 4}
+                textAnchor="end"
+                className="fill-slate-400 text-[11px] dark:fill-slate-500"
+              >
+                {fmtNumber(tick.value)}
+              </text>
+            </g>
+          ))}
+
+          {series.map((item) => (
+            <path
+              key={item.key}
+              d={pathFor(item.key)}
+              fill="none"
+              stroke={item.color}
+              strokeWidth={item.key === "close" ? 3 : 2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={item.key === "close" ? 1 : 0.82}
+            />
+          ))}
+
+          <line
+            x1={pad.left}
+            x2={width - pad.right}
+            y1={height - pad.bottom}
+            y2={height - pad.bottom}
+            stroke="currentColor"
+            className="text-slate-300 dark:text-slate-700"
+          />
+          <text
+            x={pad.left}
+            y={height - 10}
+            textAnchor="start"
+            className="fill-slate-400 text-[11px] dark:fill-slate-500"
+          >
+            {firstPoint.date.slice(5)}
+          </text>
+          <text
+            x={width - pad.right}
+            y={height - 10}
+            textAnchor="end"
+            className="fill-slate-400 text-[11px] dark:fill-slate-500"
+          >
+            {lastPoint.date.slice(5)}
+          </text>
+
+          <circle
+            cx={xFor(points.length - 1)}
+            cy={yFor(lastPoint.close)}
+            r="4"
+            fill="#0f172a"
+            className="dark:fill-slate-100"
+          />
+        </svg>
+      </div>
+    </div>
   );
 }
 

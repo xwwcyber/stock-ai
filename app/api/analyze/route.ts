@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const quote = await fetchQuote(symbol);
+    let trendError: string | null = null;
     const trend = await fetchTrendSnapshot(symbol).catch((e) => {
+      trendError = e instanceof Error ? e.message : String(e);
       console.error('[trend] 趋势数据不可用:', e);
       return null;
     });
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       quote,
       trend,
+      trend_error: trendError,
       analysis,
       saved: !!persisted,
       record_id: persisted?.id ?? null,
